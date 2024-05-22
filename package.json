@@ -1,33 +1,58 @@
 {
   "name": "@taskless/node",
-  "version": "0.0.1",
   "description": "World class observability library for your network requests",
-  "main": "dist/index.js",
+  "version": "0.0.1",
+  "author": "",
+  "license": "ISC",
   "scripts": {
-    "test": "echo \"Error: no test specified yet\"",
+    "build": "tsup",
     "husky": "husky",
     "lint-staged": "lint-staged",
     "prepare": "husky",
     "prettier": "prettier",
     "syncpack": "syncpack",
+    "test": "echo \"Error: no test specified yet\"",
     "tsx": "tsx",
     "xo": "xo"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "tsup": {
+    "entry": [
+      "src/index.ts"
+    ],
+    "format": "esm",
+    "splitting": false,
+    "sourcemap": true,
+    "clean": true,
+    "dts": true
+  },
+  "type": "module",
+  "main": "dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "dependencies": {
+    "msw": "^2.3.0",
+    "tslib": "^2.6.2"
+  },
   "devDependencies": {
     "@commitlint/cli": "^19.3.0",
     "@commitlint/config-conventional": "^19.2.2",
     "@types/node": "^20.12.12",
+    "ava": "^6.1.3",
+    "esbuild": "^0.21.3",
     "husky": "^9.0.11",
     "lint-staged": "^15.2.4",
     "npm-run-all": "^4.1.5",
     "prettier": "^3.2.5",
     "syncpack": "^12.3.2",
+    "tsup": "^8.0.2",
     "tsx": "^4.10.5",
     "typescript": "^5.4.5",
     "xo": "^0.58.0"
   },
-  "type": "module"
+  "keywords": []
 }

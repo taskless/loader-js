@@ -1,20 +1,9 @@
 # Dist and builds
 dist
-build
-artifacts
-artifacts/*
 tmp
-.task
 .make
 .build
 .out
-
-# Dev secrets cache
-.secrets
-.secrets/*
-
-# Thunder Client - don't save activity
-thunder-tests/thunderActivity.json
 
 # Standard node affairs
 node_modules
