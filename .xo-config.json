@@ -1,0 +1,48 @@
+{
+  "prettier": true,
+  "space": true,
+  "nodeVersion": false,
+  "rules": {
+    "@typescript-eslint/naming-convention": "off",
+    "@typescript-eslint/no-floating-promises": "off",
+    "@typescript-eslint/parameter-properties": [
+      "error",
+      {
+        "prefer": "class-property"
+      }
+    ],
+    "capitalized-comments": "off",
+    "complexity": ["error", 30],
+    "import/order": [
+      "error",
+      {
+        "groups": [
+          "builtin",
+          "external",
+          "internal",
+          "parent",
+          "sibling",
+          "index",
+          "object",
+          "type"
+        ],
+        "pathGroups": [
+          {
+            "pattern": "@/**",
+            "group": "internal"
+          }
+        ],
+        "alphabetize": {
+          "order": "asc",
+          "caseInsensitive": true
+        }
+      }
+    ],
+    "n/no-process-env": "warn",
+    "no-template-curly-in-string": "warn",
+    "unicorn/filename-case": "off",
+    "unicorn/no-array-callback-reference": "off",
+    "unicorn/no-array-method-this-argument": "off"
+  },
+  "plugins": []
+}

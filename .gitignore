@@ -1,0 +1,40 @@
+# Dist and builds
+dist
+build
+artifacts
+artifacts/*
+tmp
+.task
+.make
+.build
+.out
+
+# Dev secrets cache
+.secrets
+.secrets/*
+
+# Thunder Client - don't save activity
+thunder-tests/thunderActivity.json
+
+# Standard node affairs
+node_modules
+*.log
+out.txt
+
+# Emacs/Vims and other Editor State files
+*.swp
+*.save
+
+# Directory / File Meta Info
+.DS_Store
+*:Zone.Identifier
+
+# Don't save zips. Save the things that make zips
+*.zip
+
+# scratchpad - personal local files
+.scratchpad
+.scratchpad.md
+
+# No env. Never env
+.env*
