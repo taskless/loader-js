@@ -1,6 +1,6 @@
 {
-  "name": "@taskless/node",
-  "description": "World class observability library for your network requests",
+  "name": "@taskless/shim",
+  "description": "Adds world class observability library for your network requests",
   "version": "0.0.1",
   "author": "Taskless",
   "license": "Apache-2.0",
@@ -22,11 +22,24 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
+    },
+    "./node": {
+      "types": "./dist/node.d.ts",
+      "import": "./dist/node.js",
+      "require": "./dist/node.cjs"
     }
   },
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "LICENSE",
+    "package.json"
+  ],
   "tsup": {
     "entry": [
-      "src/index.ts"
+      "src/index.ts",
+      "src/node.ts"
     ],
     "format": "esm",
     "splitting": false,
