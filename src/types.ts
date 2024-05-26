@@ -52,5 +52,5 @@ export type RequestEvent = {
     response?: Response;
   };
   /** The duration of the request, undefined if a duration could not be determined */
-  duration?: number;
+  durationMs?: number;
 };

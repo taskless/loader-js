@@ -65,7 +65,7 @@ const taskless = (secret: string, initOptions: InitOptions) => {
               level: item.statusCode >= 400 ? "error" : "info",
               url: item.url,
               statusCode: item.statusCode,
-              duration: item.duration,
+              durationMs: item.durationMs,
             };
             log(JSON.stringify(entry));
           }
@@ -161,7 +161,7 @@ const taskless = (secret: string, initOptions: InitOptions) => {
 
         const end = hrtime.bigint();
 
-        const duration = convertHrtime(end - start).milliseconds;
+        const durationMs = convertHrtime(end - start).milliseconds;
 
         schedule({
           url: info.request.url,
@@ -174,7 +174,7 @@ const taskless = (secret: string, initOptions: InitOptions) => {
                 },
               }
             : {}),
-          duration,
+          durationMs,
         });
 
         return response as StrictResponse<any>;
