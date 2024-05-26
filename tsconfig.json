@@ -32,7 +32,12 @@
     "sourceMap": true,
     "strictBindCallApply": false,
 
-    "types": ["node"]
+    "types": ["node"],
+
+    "paths": {
+      "@test/*": ["./test/*"],
+      "@~/*": ["./src/*"]
+    }
   },
   // ts-node common settings
   "ts-node": {
