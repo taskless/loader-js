@@ -76,5 +76,8 @@
     "typescript": "^5.4.5",
     "xo": "^0.58.0"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "keywords": []
 }
