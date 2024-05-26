@@ -5,7 +5,7 @@ tmp
 .build
 .out
 .tsimp
-coverage/tmp
+coverage
 
 # Standard node affairs
 node_modules
