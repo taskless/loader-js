@@ -4,6 +4,8 @@ tmp
 .make
 .build
 .out
+.tsimp
+coverage/tmp
 
 # Standard node affairs
 node_modules

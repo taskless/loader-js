@@ -33,16 +33,11 @@
     "strictBindCallApply": false,
 
     "types": ["node"],
+    "allowJs": true, // for importing configs in tests
 
     "paths": {
-      "@test/*": ["./test/*"],
-      "@~/*": ["./src/*"]
+      "@~/*": ["./src/*"],
+      "@test/*": ["./test/*"]
     }
-  },
-  // ts-node common settings
-  "ts-node": {
-    "transpileOnly": true,
-    "esm": true,
-    "noEmit": true
   }
 }
