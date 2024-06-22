@@ -1,7 +1,7 @@
 {
   "name": "@taskless/__shim",
   "description": "Taskless Labs - shim library",
-  "version": "0.0.3",
+  "version": "0.0.5",
   "author": "Taskless",
   "license": "Apache-2.0",
   "scripts": {
