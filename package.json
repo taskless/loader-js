@@ -1,6 +1,6 @@
 {
-  "name": "@taskless/__shim",
-  "description": "Taskless Labs - shim library",
+  "name": "@taskless/shim",
+  "description": "Taskless - shim library",
   "version": "0.0.5",
   "author": "Taskless",
   "license": "Apache-2.0",
@@ -14,7 +14,7 @@
     "prettier": "prettier",
     "rel": "release-it",
     "syncpack": "syncpack",
-    "test": "c8 ava",
+    "test": "tsimp --restart && c8 ava",
     "tsimp": "tsimp",
     "xo": "xo"
   },

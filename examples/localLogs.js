@@ -18,7 +18,11 @@ const main = async () => {
 
   await setTimeout(400);
 
-  await fetch("https://example.com/another_path");
+  await fetch("https://example.com/another_path", {
+    headers: {
+      "x-sample-header": "sample-value",
+    },
+  });
 };
 
 await main();

@@ -4,6 +4,8 @@ export type MaybePromise<T> = T | Promise<T>;
 
 type RequestInterpreter<T> = (request: Request) => MaybePromise<T>;
 
+type MetadataValue = string | number | boolean | undefined;
+
 export type InitOptions = {
   /**
    * Enables local mode. No outbound requests will be made to Taskless. Most
@@ -45,7 +47,7 @@ export type Matcher = string | RequestInterpreter<boolean>;
 export type CaptureOptions = {
   exclude?: boolean;
   payloads?: boolean;
-  metadata?: Record<string, unknown>;
+  metadata?: Record<string, MetadataValue>;
 };
 
 export type TasklessCoreAPI = {
@@ -62,10 +64,7 @@ export type RequestEvent = {
     request?: Request;
     response?: Response;
   };
-  /** An optional OpenTracing compatible trace_id */
-  traceId?: string;
-  /** An optional OpenTracing compatible span_id */
-  spanId?: string;
+  metadata?: Record<string, MetadataValue>;
   /** The duration of the request, undefined if a duration could not be determined */
   durationMs?: number;
 };
@@ -79,14 +78,12 @@ export type LogEntry = {
   id: string;
   /** The URL associated with the event */
   url: string;
-  /** An optional OpenTracing compatible trace_id */
-  traceId?: string;
-  /** An optional OpenTracing compatible span_id */
-  spanId?: string;
   /** In the event of an error, this contains either the exception or the status text from response headers */
   error?: string;
   /** The status code of the request, or `0` for an error generated outside of the request lifecycle */
   statusCode?: number;
   /** The duration in miliseconds of the request */
   durationMs?: number;
+  /** The metadata associated with the event */
+  metadata?: Record<string, MetadataValue>;
 };

@@ -1,6 +1,6 @@
 // @ts-check
 
-import { taskless } from "../../src/node.js";
+import { taskless } from "../../src/node/taskless.js";
 
 /**
  * Types the globalThis to allow custom keys to be read
@@ -64,7 +64,7 @@ t.capture(`${root}/metadata/*`, {
 t.capture(`${root}/dynamic-options`, async (request) => {
   return {
     metadata: {
-      "x-sample-header": request.headers.get("x-sample-header"),
+      "x-sample-header": request.headers.get("x-sample-header") ?? undefined,
     },
   };
 });

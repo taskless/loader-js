@@ -1,4 +1,4 @@
-import { taskless } from "@taskless/__shim/node";
+import { taskless } from "@taskless/shim/node";
 
 const t = taskless("test-secret", {
   // enable local-only mode
@@ -7,10 +7,21 @@ const t = taskless("test-secret", {
   log: (jsonString) => {
     console.log(jsonString);
   },
-  logLevel: "info",
 });
 
-t.capture("https://example.com/*");
+t.capture("https://example.com/*", (request) => {
+  // transform any x- headers into metadata
+  const metadata = {};
+  request.headers.forEach((value, key) => {
+    if (key.startsWith("x-")) {
+      metadata[key] = value;
+    }
+  });
+
+  return {
+    metadata,
+  };
+});
 
 /*
 If using CommonJS
