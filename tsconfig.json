@@ -12,7 +12,7 @@
     "declaration": false,
     "downlevelIteration": true,
 
-    "importHelpers": true,
+    "importHelpers": false, // strongly ensure no tslib dependency
     "inlineSources": true,
 
     "noFallthroughCasesInSwitch": true,

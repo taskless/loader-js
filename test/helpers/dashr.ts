@@ -2,4 +2,6 @@
 export const dashrConfig = async (fixture: string) => {
   const file = `../fixtures/${fixture}`;
   await import(file);
+
+  return true;
 };

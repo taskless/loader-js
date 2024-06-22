@@ -5,6 +5,9 @@ settings:
   excludeLinksFromLockfile: false
 
 dependencies:
+  '@theinternetfolks/snowflake':
+    specifier: ^1.3.0
+    version: 1.3.0
   convert-hrtime:
     specifier: ^5.0.0
     version: 5.0.0
@@ -20,9 +23,6 @@ dependencies:
   serialize-error:
     specifier: ^11.0.3
     version: 11.0.3
-  tslib:
-    specifier: ^2.6.2
-    version: 2.6.2
 
 devDependencies:
   '@commitlint/cli':
@@ -1045,6 +1045,10 @@ packages:
     dependencies:
       defer-to-connect: 2.0.1
     dev: true
+
+  /@theinternetfolks/snowflake@1.3.0:
+    resolution: {integrity: sha512-/5fjyE+JIa95Lm1uDJ9fx52W7/ZHBVvKo5GbpR+swpchbriLzVgFAIUOVwLsscnUTBixyQ+JsEh5pJQM/zKNzQ==}
+    dev: false
 
   /@tootallnate/quickjs-emscripten@0.23.0:
     resolution: {integrity: sha512-C5Mc6rdnsaJDjO3UpGW/CQTHtCKaYlScZTly4JIu97Jxo/odCiH0ITnDXSJPTOrEKk/ycSZ0AOgTmkDtkOsvIA==}
@@ -6758,6 +6762,7 @@ packages:
 
   /tslib@2.6.2:
     resolution: {integrity: sha512-AEYxH93jGFPn/a2iVAwW87VuUIkR1FVUKB77NwMF7nBTDkDrrT/Hpt/IrCJ0QXhW27jTBDcf5ZY7w6RiqTMw2Q==}
+    dev: true
 
   /tsup@8.0.2(typescript@5.4.5):
     resolution: {integrity: sha512-NY8xtQXdH7hDUAZwcQdY/Vzlw9johQsaqf7iwZ6g1DOUlFYQ5/AtVAjTvihhEyeRlGo4dLRVHtrRaL35M1daqQ==}

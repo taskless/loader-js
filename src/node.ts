@@ -1,5 +1,6 @@
 import { lookup } from "node:dns";
-import { hrtime } from "node:process";
+import { hrtime, pid } from "node:process";
+import { Snowflake } from "@theinternetfolks/snowflake";
 import convertHrtime from "convert-hrtime";
 import {
   type HttpResponseResolver,
@@ -16,13 +17,49 @@ import {
   type InitOptions,
   type RequestEvent,
 } from "./types.js";
+import { stringify } from "./util/stringify.js";
 
 const DEFAULT_INGEST_ENDPOINT = undefined;
+const DEAULT_PAYLOAD_ENDPOINT = undefined;
 
 // eslint-disable-next-line @typescript-eslint/no-empty-function
 const noop = () => {};
 
-const taskless = (secret: string, initOptions: InitOptions) => {
+// IDs are generated using snowflake epoch 2020 with the shard as PID
+// on Taskless' side if using the cloud integration, it will be further
+// disambiguated by the project id. However, for local logs, this should
+// be sufficient.
+Snowflake.EPOCH = Date.UTC(2020, 0, 1).valueOf();
+Snowflake.SHARD_ID = pid % 1024;
+
+const taskless = (secret: string | undefined, initOptions?: InitOptions) => {
+  const ingestEndpoint =
+    initOptions?.__experimental?.endpoints?.ingest ?? DEFAULT_INGEST_ENDPOINT;
+  const payloadEndpoint =
+    initOptions?.__experimental?.endpoints?.payload ?? DEAULT_PAYLOAD_ENDPOINT;
+  const hasSecret = Boolean(secret && secret.length > 0);
+  const useNetwork = Boolean(
+    hasSecret && !initOptions?.local && ingestEndpoint && payloadEndpoint
+  );
+
+  // change the machine id if requested. Ensure number is within 10 bits
+  if (initOptions?.machineId) {
+    if (initOptions.machineId < 0 || initOptions.machineId > 1023) {
+      throw new Error(
+        `taskless initOptions.machineId must be between 0 and 1023, but got ${initOptions.machineId}`
+      );
+    }
+
+    Snowflake.SHARD_ID = initOptions.machineId;
+  }
+
+  // ensure local enabled if no project/api key
+  if (!hasSecret && !initOptions?.local) {
+    throw new Error(
+      "taskless requires a secret to be set, or must run with initOptions.local as true"
+    );
+  }
+
   const msw = (initOptions?.__experimental?.msw ??
     setupServer()) as SetupServerApi;
 
@@ -32,75 +69,105 @@ const taskless = (secret: string, initOptions: InitOptions) => {
     });
   }
 
-  const resolvedEndpoint =
-    initOptions?.__experimental?.endpoint ?? DEFAULT_INGEST_ENDPOINT;
-
-  if (resolvedEndpoint) {
-    // look up endpoint as early as possible to avoid using libuv during userland code
-    const u = new URL(resolvedEndpoint);
-    lookup(u.hostname, 4, () => {
-      // noop
-    });
+  if (ingestEndpoint) {
+    lookup(new URL(ingestEndpoint).hostname, 4, noop);
   }
 
-  const log = initOptions?.log;
-  const events: RequestEvent[] = [];
-  const batchQueue = new PQueue({ concurrency: 1, autoStart: true });
-  const bigQueue = new PQueue({ concurrency: 2, autoStart: true });
-  const batchThrottle = pThrottle({
-    limit: 1,
-    interval: 1000,
-  });
+  if (payloadEndpoint) {
+    lookup(new URL(payloadEndpoint).hostname, 4, noop);
+  }
+
+  const logQueue = new PQueue({ concurrency: 1, autoStart: true });
+  const telemetryQueue = new PQueue({ concurrency: 1, autoStart: true });
+  const telemetryBatch: RequestEvent[] = [];
+  const payloadQueue = new PQueue({ concurrency: 2, autoStart: true });
+  const payloadBatch: RequestEvent[] = [];
+
+  const eventToString = (event: RequestEvent) => {
+    return stringify({
+      level: event.statusCode >= 400 ? "error" : "info",
+      id: Snowflake.generate(),
+      v: 1,
+      url: event.url,
+      statusCode: event.statusCode,
+      durationMs: event.durationMs,
+      traceId: event.traceId,
+      spanId: event.spanId,
+      error:
+        event.statusCode >= 400
+          ? event.payloads?.response?.statusText
+          : undefined,
+    });
+  };
+
+  const log = (event: RequestEvent) => async () => {
+    /* c8 ignore next 3 */
+    if (!initOptions?.log) {
+      return;
+    }
+
+    initOptions.log(eventToString(event));
+  };
+
+  // send a batch of telemetry events to Taskless
+  const dispatchTelemetryBatch = pThrottle({ limit: 1, interval: 1000 })(
+    async () => {
+      const batch = telemetryBatch.splice(0, telemetryBatch.length);
+      /* c8 ignore next 3 */
+      if (batch.length === 0) {
+        return;
+      }
+
+      // TODO: send telemetry items to endpoint as batch
+      const _temporary = "";
+    }
+  );
+
+  const sendTelemetry = (event: RequestEvent) => async () => {
+    /* c8 ignore next 3 */
+    if (!useNetwork) {
+      return;
+    }
+
+    telemetryBatch.push(event);
+    dispatchTelemetryBatch();
+  };
+
+  // upload a batch of payloads to Taskless
+  const dispatchPayloadBatch = pThrottle({ limit: 1, interval: 1000 })(
+    async () => {
+      const batch = payloadBatch.splice(0, payloadBatch.length);
+      /* c8 ignore next 3 */
+      if (batch.length === 0) {
+        return;
+      }
+
+      // TODO: get signed URLs for all payloads (batch)
+      // TODO: upload directly to signed destinations (individual)
+      const _temporary = "";
+    }
+  );
+
+  const sendPayload = (event: RequestEvent) => async () => {
+    /* c8 ignore next 3 */
+    if (!useNetwork) {
+      return;
+    }
+
+    payloadBatch.push(event);
+    dispatchPayloadBatch();
+  };
 
   /**
    * Sends telemetry to the endpoint. If any payloads are present, it
    * defaults to the "bigQueue" to avoid blocking smaller telemetry
    * in the event of a large payload
    */
-  const send = (chunk: RequestEvent[]) => {
-    const logFunction = log
-      ? () => {
-          for (const item of chunk) {
-            const entry = {
-              level: item.statusCode >= 400 ? "error" : "info",
-              url: item.url,
-              statusCode: item.statusCode,
-              durationMs: item.durationMs,
-            };
-            log(JSON.stringify(entry));
-          }
-        }
-      : noop;
-
-    const sendFunction = async () => {
-      // TODO - send request to endpoint via bypass
-      logFunction();
-    };
-
-    if (chunk.some((event) => event.payloads)) {
-      bigQueue.add(sendFunction);
-    } else {
-      batchQueue.add(sendFunction);
-    }
-  };
-
-  /** Throttled function that takes events and batch schedules them */
-  const dispatchBatch = batchThrottle(async () => {
-    // queue all chunks
-    let chunk = events.splice(0, 10);
-    while (chunk.length > 0) {
-      send(chunk);
-      chunk = events.splice(0, 10);
-    }
-  });
-
-  /** Pushes items onto the batch queue (non-payload), then triggers any batch operations */
-  const schedule = (event: RequestEvent) => {
+  const send = (event: RequestEvent) => {
+    logQueue.add(log(event));
+    telemetryQueue.add(sendTelemetry(event));
     if (event.payloads) {
-      send([event]);
-    } else {
-      events.push(event);
-      dispatchBatch();
+      payloadQueue.add(sendPayload(event));
     }
   };
 
@@ -129,6 +196,7 @@ const taskless = (secret: string, initOptions: InitOptions) => {
         try {
           response = await fetch(bypass(info.request.clone()));
         } catch (error) {
+          /* c8 ignore start */
           if (initOptions?.log) {
             initOptions.log(
               JSON.stringify({
@@ -139,22 +207,21 @@ const taskless = (secret: string, initOptions: InitOptions) => {
                   : "unknown error",
               })
             );
+            /* c8 ignore end */
           }
 
-          send([
-            {
-              url: info.request.url,
-              statusCode: response ? response.status : 0,
-              ...(captureOptions.payloads
-                ? {
-                    payloads: {
-                      request: info.request.clone(),
-                      response: Response.error(),
-                    },
-                  }
-                : {}),
-            },
-          ]);
+          send({
+            url: info.request.url,
+            statusCode: response ? response.status : 0,
+            ...(captureOptions.payloads
+              ? {
+                  payloads: {
+                    request: info.request.clone(),
+                    response: Response.error(),
+                  },
+                }
+              : {}),
+          });
 
           return Response.error() as StrictResponse<any>;
         }
@@ -163,7 +230,7 @@ const taskless = (secret: string, initOptions: InitOptions) => {
 
         const durationMs = convertHrtime(end - start).milliseconds;
 
-        schedule({
+        send({
           url: info.request.url,
           statusCode: response.status,
           ...(captureOptions.payloads

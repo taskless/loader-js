@@ -6,11 +6,17 @@ import { withContext } from "./helpers/withContext.js";
 
 const test = withContext(anyTest)
   .use<UseServer<"TSKL_HOST">>(useServer("TSKL_HOST"))
-  .use<UseServer<"ENDPOINT">>(useServer("ENDPOINT"))
   .use<UseLocalLogs>(useLocalLogs())
   .build();
 
-test("Can load a fixture properly", async (t) => {
-  await dashrConfig("node.config.js");
-  t.pass("Loaded a fixture");
+test("Requires explicit local mode opt-in when no secret is set", async (t) => {
+  await t.throwsAsync(async () => {
+    await dashrConfig("node-error/missing-local.config.js");
+  });
+});
+
+test("Requires a machineId 0-1023 for snowflake compatibility", async (t) => {
+  await t.throwsAsync(async () => {
+    await dashrConfig("node-error/bad-machineid.config.js");
+  });
 });

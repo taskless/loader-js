@@ -2,17 +2,20 @@ import http from "node:http";
 import test, { type TestFn } from "ava";
 import getPort from "get-port";
 
-export type UseServer = {
+export type UseServer<T extends string> = {
   server: {
-    instance: http.Server;
+    [key in T]: {
+      instance: http.Server;
 
-    host: string;
-    logs: ServerLog[];
+      host: string;
+      logs: ServerLog[];
+    };
   };
 };
 
+// eslint-disable-next-line @typescript-eslint/consistent-indexed-object-style
 type GlobalThisWithServerShim = typeof globalThis & {
-  TSKL_HOST: string;
+  [key: string]: string;
 };
 
 type ServerLog = {
@@ -21,8 +24,8 @@ type ServerLog = {
 
 /** Enables a receiving server for requests, and adds the host URL to the globalThis for the test duration */
 export const useServer =
-  () =>
-  (test: TestFn<UseServer>): TestFn<UseServer> => {
+  (id: string) =>
+  (test: TestFn<UseServer<typeof id>>): TestFn<UseServer<typeof id>> => {
     test.beforeEach(async (t) => {
       const logs: ServerLog[] = [];
       const server = http.createServer((request, response) => {
@@ -54,18 +57,24 @@ export const useServer =
       });
 
       // shim into global
-      (globalThis as GlobalThisWithServerShim).TSKL_HOST = host;
+      (globalThis as GlobalThisWithServerShim)[id] = host;
 
       t.context.server = {
-        instance: server,
-        host,
-        logs,
+        ...t.context.server,
+        [id]: {
+          instance: server,
+          host,
+          logs,
+        },
       };
     });
 
     test.afterEach.always((t) => {
-      delete (globalThis as Partial<GlobalThisWithServerShim>).TSKL_HOST;
-      t.context.server.instance.close();
+      t.context.server[id].instance.close();
+      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+      delete (globalThis as Partial<GlobalThisWithServerShim>)[id];
+      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+      delete t.context.server[id];
     });
 
     return test;
