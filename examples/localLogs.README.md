@@ -21,7 +21,7 @@ Local logging lets you hook the Taskless interceptor up to a local log drain or 
 The example makes two intercepted calls, one that succeeds with a `200` and one that fails with a `500`.
 
 # Do This Yourself
-1. `npm i @taskless/__shim`
+1. `npm i @taskless/shim`
 2. Make your `taskless.config.js` or just copy ours
 3. Add the config via the `--import` (node 18+) or `-r` (legacy) syntax
 
