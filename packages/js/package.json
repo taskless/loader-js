@@ -12,7 +12,8 @@
     "prettier": "prettier",
     "rel": "release-it",
     "test": "tsimp --restart && c8 ava",
-    "tsimp": "tsimp"
+    "tsimp": "tsimp",
+    "xo": "xo"
   },
   "type": "module",
   "main": "dist/index.js",
@@ -65,7 +66,8 @@
     "tsimp": "^2.0.11",
     "tsup": "^8.0.2",
     "type-fest": "^4.18.3",
-    "typescript": "^5.4.5"
+    "typescript": "^5.4.5",
+    "xo": "^0.58.0"
   },
   "publishConfig": {
     "access": "public"

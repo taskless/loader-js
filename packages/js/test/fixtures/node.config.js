@@ -16,9 +16,9 @@ const t = taskless(
   {
     // Use a custom logger. We reference a possible global set in our test env,
     // otherwise falling back to console.log
-    log: (jsonString) => {
+    log(jsonString) {
       if (gt.TSKL_LOG) {
-        gt.TSKL_LOG(jsonString);
+        gt.TSKL_LOG(jsonString); // eslint-disable-line new-cap
       } else {
         console.log(jsonString);
       }

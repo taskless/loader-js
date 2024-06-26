@@ -1,16 +1,16 @@
-{
-  "prettier": true,
-  "space": true,
-  "nodeVersion": false,
-  "rules": {
+module.exports = {
+  prettier: true,
+  space: true,
+  nodeVersion: false,
+  rules: {
     "@typescript-eslint/naming-convention": "off",
     "@typescript-eslint/no-floating-promises": "off",
     "capitalized-comments": "off",
-    "complexity": ["error", 30],
+    complexity: ["error", 30],
     "import/order": [
       "error",
       {
-        "groups": [
+        groups: [
           "builtin",
           "external",
           "internal",
@@ -18,25 +18,25 @@
           "sibling",
           "index",
           "object",
-          "type"
+          "type",
         ],
-        "pathGroups": [
+        pathGroups: [
           {
-            "pattern": "@/**",
-            "group": "internal"
-          }
+            pattern: "@/**",
+            group: "internal",
+          },
         ],
-        "alphabetize": {
-          "order": "asc",
-          "caseInsensitive": true
-        }
-      }
+        alphabetize: {
+          order: "asc",
+          caseInsensitive: true,
+        },
+      },
     ],
     "n/no-process-env": "warn",
     "no-template-curly-in-string": "warn",
     "unicorn/filename-case": "off",
     "unicorn/no-array-callback-reference": "off",
-    "unicorn/no-array-method-this-argument": "off"
+    "unicorn/no-array-method-this-argument": "off",
   },
-  "plugins": []
-}
+  plugins: [],
+};

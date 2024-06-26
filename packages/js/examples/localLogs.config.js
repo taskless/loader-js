@@ -4,7 +4,7 @@ const t = taskless("test-secret", {
   // enable local-only mode
   local: true,
   // enable logging
-  log: (jsonString) => {
+  log(jsonString) {
     console.log(jsonString);
   },
 });
@@ -12,11 +12,11 @@ const t = taskless("test-secret", {
 t.capture("https://example.com/*", (request) => {
   // transform any x- headers into metadata
   const metadata = {};
-  request.headers.forEach((value, key) => {
+  for (const [key, value] of request.headers.entries()) {
     if (key.startsWith("x-")) {
       metadata[key] = value;
     }
-  });
+  }
 
   return {
     metadata,
