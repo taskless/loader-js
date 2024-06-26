@@ -1,6 +1,6 @@
-import { type RequestEvent } from "@~/types.js";
 import anyTest, { type TestFn } from "ava";
 import { type PartialDeep } from "type-fest";
+import { type RequestEvent } from "../src/types.js";
 import { dashrConfig } from "./helpers/dashr.js";
 import { type UseLocalLogs, useLocalLogs } from "./helpers/localLogs.js";
 import { type UseServer, useServer } from "./helpers/server.js";

@@ -15,8 +15,9 @@ const config = {
     "prettier --write",
   ],
 
-  // source files
+  // // source files
   "*.{js,jsx,ts,tsx}": ["xo --fix", "prettier --write"],
+  "*.py": ["black"],
 };
 
 export default config;

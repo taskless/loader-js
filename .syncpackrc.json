@@ -1,5 +1,5 @@
 {
-  "workspace": false,
+  "workspace": true,
   "semverRange": "^",
   "sortFirst": [
     "private",

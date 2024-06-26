@@ -5,12 +5,6 @@
   "rules": {
     "@typescript-eslint/naming-convention": "off",
     "@typescript-eslint/no-floating-promises": "off",
-    "@typescript-eslint/parameter-properties": [
-      "error",
-      {
-        "prefer": "class-property"
-      }
-    ],
     "capitalized-comments": "off",
     "complexity": ["error", 30],
     "import/order": [

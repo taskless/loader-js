@@ -2,3 +2,4 @@ __generated__/*
 *.config.*
 next-env.d.ts
 examples/*
+test/fixtures/*

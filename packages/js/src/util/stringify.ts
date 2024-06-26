@@ -1,4 +1,4 @@
-import type { LogEntry } from "@~/types.js";
+import type { LogEntry } from "../types.js";
 
 export const stringify = (logEntry: LogEntry) => {
   return JSON.stringify(logEntry);
