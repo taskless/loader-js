@@ -50,3 +50,7 @@ t.capture(string, config_callback);
 # Testing
 
 TBD
+
+# License
+
+Apache 2.0
