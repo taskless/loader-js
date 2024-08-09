@@ -24,10 +24,10 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
-    "./node": {
-      "types": "./dist/node.d.ts",
-      "import": "./dist/node.js",
-      "require": "./dist/node.cjs"
+    "./core": {
+      "types": "./dist/core.d.ts",
+      "import": "./dist/core.js",
+      "require": "./dist/core.cjs"
     }
   },
   "files": [
@@ -37,17 +37,6 @@
     "LICENSE",
     "package.json"
   ],
-  "tsup": {
-    "entry": [
-      "src/index.ts",
-      "src/node.ts"
-    ],
-    "format": "esm",
-    "splitting": false,
-    "sourcemap": true,
-    "clean": true,
-    "dts": true
-  },
   "dependencies": {
     "msw": "^2.3.5",
     "ts-dedent": "^2.2.0",
