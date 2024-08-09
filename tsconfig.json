@@ -2,7 +2,7 @@
   "compilerOptions": {
     "module": "NodeNext",
     "moduleResolution": "Node16",
-    "target": "ES2021",
+    "target": "ES2022",
     "strict": true,
 
     "allowSyntheticDefaultImports": true,
@@ -34,6 +34,7 @@
 
     "types": ["node"],
     "allowJs": true, // for importing configs in tests
+    "lib": ["ES2021"],
 
     "paths": {
       "@~/*": ["./src/*"],

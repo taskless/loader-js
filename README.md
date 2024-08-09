@@ -1,15 +1,38 @@
-# @taskless/shim
+# @taskless/loader
 
-Interceptor libraries for L7 Observability
+Take control of your third party APIs
 
-# Latest Documentation
+# Getting Started
 
-- <img src="https://img.shields.io/badge/node.js-empty?style=flat&logo=nodedotjs&logoColor=5FA04E&labelColor=222222&color=5FA04E"/> JS/TS `@taskless/shim`
-  - [docs](https://github.com/taskless/shim/blob/main/packages/js/README.md)
-  - [example - local logs](https://github.com/taskless/shim/blob/main/packages/js/examples/localLogs.README.md)
-- <img src="https://img.shields.io/badge/python-empty?style=flat&logo=python&logoColor=306998&labelColor=222222&color=306998" /> python `pypi tbd`
-  - [docs](https://github.com/taskless/shim/blob/main/packages/py/README.md)
-  - [example - local logs](https://github.com/taskless/shim/blob/main/packages/py/examples/local_logs.README.md)
+You'll need your API key from taskless.io to use Taskless' dynamic pack loading, remote cofiguration, and analytic packages. If you don't have an API key, you can sign up for free at [taskless.io](https://taskless.io).
+
+```bash
+npm install @taskless/loader
+# or
+yarn add @taskless/loader
+# or
+pnpm add @taskless/loader
+```
+
+Once you've got access to the Taskless loader, getting telemetry on taskless.io is as easy as:
+
+```bash
+TASKLESS_API_KEY="your key" node --import="@taskless/loader" start.js
+```
+
+# Advanced Features
+
+## Programatic API
+
+(coming soon)
+
+## Local (No Network) Mode
+
+Have a favorite log drain? Want to test locally? No problem. You can use the `@taskless/loader` package to test locally.
+
+```bash
+TASKLESS_LOCAL_MODE=1 node --import="@taskless/loader" start.js
+```
 
 # License
 

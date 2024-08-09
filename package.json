@@ -1,31 +1,81 @@
 {
   "private": true,
-  "name": "@taskless/~shims",
-  "description": "Taskless - Shim Library Root",
-  "version": "0.0.1",
+  "name": "@taskless/loader",
+  "description": "Taskless Loader - Take control of your third party APIs",
+  "version": "0.0.2",
   "author": "Taskless",
   "license": "Apache-2.0",
   "scripts": {
+    "build": "vite build",
+    "codegen": "tsx ./typebox/generate.ts",
     "husky": "husky",
     "lint-staged": "lint-staged",
     "prepare": "husky",
     "prettier": "prettier",
     "syncpack": "syncpack",
+    "test": "vitest",
     "xo": "xo"
   },
   "type": "module",
   "main": "dist/index.js",
-  "dependencies": {},
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./node": {
+      "types": "./dist/node.d.ts",
+      "import": "./dist/node.js",
+      "require": "./dist/node.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "LICENSE",
+    "package.json"
+  ],
+  "tsup": {
+    "entry": [
+      "src/index.ts",
+      "src/node.ts"
+    ],
+    "format": "esm",
+    "splitting": false,
+    "sourcemap": true,
+    "clean": true,
+    "dts": true
+  },
+  "dependencies": {
+    "msw": "^2.3.5",
+    "ts-dedent": "^2.2.0",
+    "uint8array-extras": "^1.4.0",
+    "uuid": "^10.0.0",
+    "wasmoon": "^1.16.0"
+  },
   "devDependencies": {
     "@commitlint/cli": "^19.3.0",
     "@commitlint/config-conventional": "^19.2.2",
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^20.12.12",
+    "@types/uuid": "^10.0.0",
+    "execa": "^9.3.0",
     "husky": "^9.0.11",
+    "js-yaml": "^4.1.0",
     "lint-staged": "^15.2.4",
     "prettier": "^3.2.5",
     "shx": "^0.3.4",
     "syncpack": "^12.3.2",
+    "tsx": "^4.16.5",
+    "type-fest": "^4.23.0",
     "typescript": "^5.4.5",
+    "vite": "^5.3.5",
+    "vite-plugin-dts": "^4.0.1",
+    "vite-plugin-externalize-deps": "^0.8.0",
+    "vite-tsconfig-paths": "^4.3.2",
+    "vitest": "^2.0.5",
     "xo": "^0.58.0"
   },
   "keywords": []
