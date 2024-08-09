@@ -4,7 +4,7 @@ Take control of your third party APIs
 
 # Getting Started
 
-You'll need your API key from taskless.io to use Taskless' dynamic pack loading, remote cofiguration, and analytic packages. If you don't have an API key, you can sign up for free at [taskless.io](https://taskless.io).
+You'll need your API key from taskless.io to use Taskless' dynamic pack loading, remote cofiguration, and dashboard packages. If you don't have an API key, you can sign up for free at [taskless.io](https://taskless.io).
 
 ```bash
 npm install @taskless/loader
@@ -14,25 +14,21 @@ yarn add @taskless/loader
 pnpm add @taskless/loader
 ```
 
-Once you've got access to the Taskless loader, getting telemetry on taskless.io is as easy as:
+Once you've got access to the Taskless loader, it's as easy as:
 
 ```bash
-TASKLESS_API_KEY="your key" node --import="@taskless/loader" start.js
+TASKLESS_API_KEY="your api key" node --import="@taskless/loader" start.js
 ```
 
 # Advanced Features
 
 ## Programatic API
 
-(coming soon)
+A programatic API is available by importing `taskless` from `@taskless/loader/core`. It's configured with your API key and allows for features like ndjson logs, local (offline) packs, and more. We encourage you to explore the TypeScript types to see what's available.
 
-## Local (No Network) Mode
+## Disabling Network Requests
 
-Have a favorite log drain? Want to test locally? No problem. You can use the `@taskless/loader` package to test locally.
-
-```bash
-TASKLESS_LOCAL_MODE=1 node --import="@taskless/loader" start.js
-```
+If you're working offline, building tests around Taskless, or just want to run Taskless in a restricted environment, you can disable network requests in the autoloader by setting the `TASKLESS_LOCAL_MODE` environment variable to `1` or in the programatic API setting `network: false`. When network requests are disabled, any packs that make network calls will result in a noop.
 
 # License
 
