@@ -14,7 +14,7 @@ yarn add @taskless/loader
 pnpm add @taskless/loader
 ```
 
-Once you've got access to the Taskless loader, it's as easy as:
+Once you've installed the Taskless loader into your node dependencies, it's as easy as:
 
 ```bash
 TASKLESS_API_KEY="your api key" node --import="@taskless/loader" start.js
