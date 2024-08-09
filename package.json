@@ -1,10 +1,10 @@
 {
-  "private": true,
   "name": "@taskless/loader",
   "description": "Taskless Loader - Take control of your third party APIs",
-  "version": "0.0.2",
+  "version": "0.0.10",
   "author": "Taskless",
   "license": "Apache-2.0",
+  "repository": "taskless/loader-js",
   "scripts": {
     "build": "vite build",
     "codegen": "tsx ./typebox/generate.ts",
