@@ -30,7 +30,7 @@ export type InitOptions = {
    */
   network?: boolean;
   /**
-   * Specify a host for receiving Taskless data. Defaults to "tskl.es"
+   * Specify a host for receiving Taskless data. Defaults to "data.tskl.es"
    */
   host?: string;
   /**
