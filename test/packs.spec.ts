@@ -20,11 +20,11 @@ describe("Loading packs", () => {
 
     // return an empty configuration from Taskless API
     msw.use(
-      http.get("https://tskl.es/config", async (info) => {
+      http.get("https://data.tskl.es/:version/config", async (info) => {
         configInterceptor();
 
         const cfg: Config = {
-          version: "1",
+          __v: 1,
           organizationId: "test",
           packs: [],
         };
@@ -76,7 +76,7 @@ describe("Loading packs", () => {
     // we store payloads for analysis later
     const payloads: NetworkPayload[] = [];
     msw.use(
-      http.post("https://tskl.es/event", async (info) => {
+      http.post("https://data.tskl.es/:version/event", async (info) => {
         const body = (await info.request.clone().json()) as NetworkPayload;
         payloads.push(body);
         return new Response(JSON.stringify({}), {

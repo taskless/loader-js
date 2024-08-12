@@ -7,7 +7,7 @@
   "repository": "taskless/loader-js",
   "scripts": {
     "build": "vite build",
-    "codegen": "tsx ./typebox/generate.ts",
+    "codegen": "tsx scripts/generate.ts",
     "husky": "husky",
     "lint-staged": "lint-staged",
     "prepare": "husky",
@@ -38,6 +38,7 @@
     "package.json"
   ],
   "dependencies": {
+    "fets": "^0.8.2",
     "msw": "^2.3.5",
     "ts-dedent": "^2.2.0",
     "uint8array-extras": "^1.4.0",

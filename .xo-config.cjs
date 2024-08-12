@@ -34,6 +34,7 @@ module.exports = {
       },
     ],
     "n/no-process-env": "warn",
+    "new-cap": "off",
     "no-template-curly-in-string": "warn",
     "unicorn/filename-case": "off",
     "unicorn/no-array-callback-reference": "off",

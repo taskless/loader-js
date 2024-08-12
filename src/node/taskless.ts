@@ -1,5 +1,11 @@
 import process from "node:process";
-import { TASKLESS_HOST } from "@~/constants.js";
+import {
+  bypass,
+  DEFAULT_FLUSH_INTERVAL,
+  emptyConfig,
+  noop,
+  TASKLESS_HOST,
+} from "@~/constants.js";
 import {
   type Pack,
   type Config,
@@ -12,12 +18,14 @@ import {
   type NetworkPayload,
   type ConsolePayload,
 } from "@~/types.js";
+import { createClient, type OASClient, type NormalizeOAS } from "fets";
 import { http, type StrictResponse } from "msw";
 import { setupServer } from "msw/node";
 import { dedent } from "ts-dedent";
 import { v4, v7 } from "uuid";
 import { type LuaEngine, LuaFactory } from "wasmoon";
 import { InitializationError } from "./error.js";
+import { createLogger } from "./logger.js";
 import {
   type CaptureCallback,
   createContextFunctions,
@@ -26,81 +34,52 @@ import {
   createRequestFunctions,
   createResponseFunctions,
 } from "./lua.js";
+import type openapi from "../__generated__/openapi.js";
 
-type LifecycleHookData = { pack: string; hook: string };
-
-const DEFAULT_FLUSH_INTERVAL = 2000;
-
-// eslint-disable-next-line @typescript-eslint/no-empty-function
-const noop = () => {};
-
-const defaultLogger: Logger = {
-  debug(messsage: string) {
-    console.debug(messsage);
-  },
-  info(messsage: string) {
-    console.info(messsage);
-  },
-  warn(messsage: string) {
-    console.warn(messsage);
-  },
-  error(messsage: string) {
-    console.error(messsage);
-  },
-  data(ndjson: string) {
-    console.log(ndjson);
-  },
-};
-
-const bypass = (request: Request) => {
-  // add x-tskl-bypass header
-  const clone = request.clone();
-  clone.headers.set("x-tskl-bypass", "1");
-  return clone;
-};
-
+/** Checks if a request is bypassed */
 const isBypassed = (request: Request) => {
   return request.headers.get("x-tskl-bypass") === "1";
 };
 
 /** Extract all packs from the config, ensuring the config is resolved */
-const extractPacks = async (packs: Promise<Config | undefined>) => {
+const extractPacks = async (packs: Promise<Config>) => {
   const data = await packs;
   return data?.packs ?? [];
 };
 
-/** Fetch the configuration from taskless using a provided API secret */
+/** Fetch the configuration from taskless using the provided API secret */
 const getConfig = async (
   secret: string,
-  { logger }: { logger: Logger },
-  options?: InitOptions
-) => {
-  const host = options?.host ?? TASKLESS_HOST;
-  const url = new URL(`https://${host}/config`);
-  const request = bypass(
-    new Request(url.toString(), {
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${secret}`,
-      },
-    })
-  );
-  const response = await fetch(request);
+  {
+    logger,
+    client,
+  }: { logger: Logger; client: OASClient<NormalizeOAS<typeof openapi>> }
+): Promise<Config> => {
+  const response = await client["/{version}/config"].get({
+    params: {
+      version: "v1",
+    },
+  });
 
-  const data = (await response.json()) as Config;
+  if (!response.ok) {
+    logger.error(
+      `Failed to fetch configuration: ${response.status} ${response.statusText}. Taskless will not apply rules.`
+    );
+    return emptyConfig;
+  }
+
+  const data = await response.json();
 
   logger.debug(
-    `Retrieved configuration from Taskless (orgId: ${data.organizationId}, version: ${data.version})`
+    `Retrieved configuration from Taskless (orgId: ${data.organizationId}, schema: ${data.__v})`
   );
-
   return data;
 };
 
 /** Load rules into a denormalized form */
 const loadRules = async (
   packs: MaybePromise<Pack[]>,
-  config: MaybePromise<Config | undefined>,
-  { logger }: { logger: Logger }
+  config: MaybePromise<Config | undefined>
 ) => {
   const [resolvedPacks, resolvedConfig] = await Promise.all([packs, config]);
   const flatRules: DenormalizedRule[] = [];
@@ -121,6 +100,9 @@ const loadRules = async (
 
   return flatRules;
 };
+
+/** Describes a lifecycle hook, both its lua script and the pack it came from */
+type LifecycleHookData = { pack: string; hook: string };
 
 /** Runs a lua script with local context features and cleans up after itself */
 const runLifecycle = async (
@@ -178,37 +160,16 @@ export const taskless = async (secret?: string, options?: InitOptions) => {
   const useNetwork = options?.network !== false;
   const universalFunctions = createGlobals();
   const globalNS = "t" + v4().replaceAll("-", "");
-
-  const logLevels: Record<keyof Logger, number> = {
-    debug: 20,
-    info: 30,
-    warn: 40,
-    error: 50,
-    data: Number.POSITIVE_INFINITY,
-  };
-
-  const logLevel = logLevels[options?.logLevel ?? "info"];
-
-  const logger: Logger = {
-    debug:
-      logLevel <= logLevels.debug
-        ? options?.log?.debug ?? defaultLogger.debug
-        : noop,
-    info:
-      logLevel <= logLevels.info
-        ? options?.log?.info ?? defaultLogger.info
-        : noop,
-    warn:
-      logLevel <= logLevels.warn
-        ? options?.log?.warn ?? defaultLogger.warn
-        : noop,
-    error:
-      logLevel <= logLevels.error
-        ? options?.log?.error ?? defaultLogger.error
-        : noop,
-    data: options?.log?.data ?? defaultLogger.data,
-  };
-
+  const logger = createLogger(options?.logLevel, options?.log);
+  const client = createClient<NormalizeOAS<typeof openapi>>({
+    endpoint: `https://${options?.host ?? TASKLESS_HOST}`,
+    globalParams: {
+      headers: {
+        authorization: `Bearer ${secret}`,
+        ...bypass,
+      },
+    },
+  });
   const pending: Entry[] = [];
   let timer: NodeJS.Timeout;
 
@@ -264,96 +225,23 @@ export const taskless = async (secret?: string, options?: InitOptions) => {
     }
 
     if (useNetwork) {
-      const request = bypass(
-        new Request(`https://${options?.host ?? TASKLESS_HOST}/event`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${secret}`,
+      client["/{version}/events"]
+        .post({
+          json: networkPayload,
+          params: {
+            version: "v1",
           },
-          body: JSON.stringify(networkPayload),
-        })
-      );
-
-      fetch(request)
-        .then(async (response) => {
-          if (response.status > 0 && response.status < 400) {
-            return response.json();
-          }
-
-          logger.error(`Received an error ${response.status} from Taskless`);
-          throw new Error("Failed request");
         })
         .catch(noop);
     }
-
-    // for (const entry of Object.values(pending)) {
-    //   if (!entry.url) {
-    //     continue;
-    //   }
-    // }
-
-    // const entries = Object.values(pending)
-    //   .map((entry) => {
-    //     if (!entry.url) {
-    //       return undefined;
-    //     }
-
-    //     // capture & clear existing data
-    //     const data = entry.data;
-    //     pending[entry.requestId].data = [];
-
-    //     return data.map(([key, value]) =>
-    //       JSON.stringify({
-    //         requestId: entry.requestId,
-    //         url: entry.url,
-    //         dimension: key,
-    //         value,
-    //       })
-    //     );
-    //   })
-    //   .filter(isDefined)
-    //   .flat();
-
-    // logger.debug(
-    //   `Flushing pending telemetry (${entries.length}, ${Object.values(pending).length})`
-    // );
-
-    // if ((!useNetwork || options?.forceLog) && entries.length > 0) {
-    //   logger.info(entries.join("\n"));
-    // }
-
-    // if (useNetwork) {
-    //   const request = bypass(
-    //     new Request(`https://${host}/event`, {
-    //       method: "POST",
-    //       headers: {
-    //         "Content-Type": "application/x-ndjson",
-    //         Authorization: `Bearer ${secret}`,
-    //       },
-    //       body: entries.join("\n"),
-    //     })
-    //   );
-
-    //   fetch(request)
-    //     .then(async (response) => {
-    //       if (response.status > 0 && response.status < 400) {
-    //         return response.json();
-    //       }
-
-    //       logger.error(`Received an error ${response.status} from Taskless`);
-    //       throw new Error("Failed request");
-    //     })
-    //     .catch(noop);
-    // }
   }
 
   // a bunch of promises to not block on. Hold their awaited values instead
   const factory = new LuaFactory();
   const promisedConfig =
     secret && useNetwork
-      ? getConfig(secret, { logger }, options)
-      : Promise.resolve(undefined);
+      ? getConfig(secret, { logger, client })
+      : Promise.resolve(emptyConfig);
   const promisedPacks = extractPacks(promisedConfig);
   const promisedEngine = factory.createEngine();
   let resolvedLua: LuaEngine | undefined;
@@ -375,8 +263,8 @@ export const taskless = async (secret?: string, options?: InitOptions) => {
 
     initialized = true;
     const [remote, local] = await Promise.all([
-      loadRules(promisedPacks, promisedConfig, { logger }),
-      loadRules(localPacks, promisedConfig, { logger }),
+      loadRules(promisedPacks, promisedConfig),
+      loadRules(localPacks, promisedConfig),
     ]);
 
     logger.debug(
@@ -499,8 +387,8 @@ export const taskless = async (secret?: string, options?: InitOptions) => {
         }
       );
       const finalizedRequest = request.internal.finalize();
-
-      const fetchResponse = await fetch(bypass(finalizedRequest));
+      finalizedRequest.headers.set("x-tskl-bypass", "1");
+      const fetchResponse = await fetch(finalizedRequest);
 
       const response = await createResponseFunctions(fetchResponse);
       await runLifecycle(
@@ -549,7 +437,7 @@ export const taskless = async (secret?: string, options?: InitOptions) => {
   };
 };
 
-/** Autoloading interface for Taskless, hiding configuration that wouldn't be available anyway */
+/** Autoloading interface for Taskless, hides manual pack loading and automatically initializes */
 export const autoload = async (secret?: string, options?: InitOptions) => {
   const t = await taskless(secret, options);
   await t.load();

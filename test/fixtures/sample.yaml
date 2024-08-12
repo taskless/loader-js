@@ -3,15 +3,15 @@ pack: 1
 name: "@taskless/test"
 version: "1.0.0"
 description: Test pack with basic functionality expressed
+sends:
+  durationMs:
+    type: "number"
+    description: "The duration of the request in milliseconds"
+  status:
+    type: "number"
+    description: "The status code of the request"
 rules:
   - matches: "https://.+"
-    sends:
-      durationMs:
-        type: "number"
-        description: "The duration of the request in milliseconds"
-      status:
-        type: "number"
-        description: "The status code of the request"
     hooks:
       pre: |
         context.set("start", now())

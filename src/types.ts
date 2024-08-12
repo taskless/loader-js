@@ -1,4 +1,6 @@
+import { type NormalizeOAS, type OASOutput } from "fets";
 import { type SetupServerApi } from "msw/node";
+import type openapi from "./__generated__/openapi.js";
 
 export function isDefined<T>(value: T): value is NonNullable<T> {
   return value !== undefined && value !== null;
@@ -60,23 +62,18 @@ export type InitOptions = {
   };
 };
 
-export type HookName = "pre" | "post";
-
-/** Describes a rule in the Pack configuration */
-export type Rule = {
-  matches: string;
-  sends?: Record<
-    string,
-    {
-      type: string;
-      description?: string;
-    }
-  >;
-  captureBody?: boolean;
-  hooks?: {
-    [K in HookName]?: string;
-  };
-};
+/** Describes the Taskless configuration */
+export type Config = OASOutput<
+  NormalizeOAS<typeof openapi>,
+  "/{version}/config",
+  "get"
+>;
+/** Describes a pack in the Config */
+export type Pack = Config["packs"][number];
+/** Describes a rule in the Pack */
+export type Rule = Pack["rules"][number];
+/** Creates a pick-list of valid hook types */
+export type HookName = keyof NonNullable<Rule["hooks"]>;
 
 /** Describes a denormalized rule, supplemented with information from its parent object(s) */
 export type DenormalizedRule = Rule & {
@@ -86,22 +83,6 @@ export type DenormalizedRule = Rule & {
     packVersion: string;
     configOrganizationId: string;
   };
-};
-
-/** Describes a pack object inside of the config */
-export type Pack = {
-  pack: number;
-  name: string;
-  version: string;
-  description?: string;
-  rules: Rule[];
-};
-
-/** Describes the Taskless configuration */
-export type Config = {
-  version: string;
-  organizationId: string;
-  packs: Pack[];
 };
 
 export type Entry = {
