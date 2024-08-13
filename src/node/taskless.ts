@@ -422,7 +422,6 @@ export const taskless = async (secret?: string, options?: InitOptions) => {
     flush() {
       clearTimeout(timer);
       flush();
-      startDrain();
     },
     /** Trigger the loading of all packs */
     async load() {
