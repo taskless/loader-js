@@ -198,39 +198,54 @@ export default {
               "schema": {
                 "type": "object",
                 "additionalProperties": {
-                  "additionalProperties": false,
-                  "type": "object",
-                  "patternProperties": {
-                    "^(.*)$": {
-                      "type": "array",
-                      "items": {
-                        "description": "To support multiple data points in the same batch operation, key/value pairs are expressed as a tuple of [key, type, value]",
-                        "type": "array",
-                        "minItems": 3,
-                        "maxItems": 3,
-                        "items": {},
-                        "prefixItems": [
-                          {
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "seq": {
+                            "description": "The sequence ID (uuid v7 as an unsighed 128-bit integer)",
                             "type": "string"
                           },
-                          {
-                            "anyOf": [
-                              {
-                                "const": "s",
-                                "type": "string"
-                              },
-                              {
-                                "const": "n",
-                                "type": "string"
-                              }
-                            ]
+                          "dim": {
+                            "description": "The dimension key",
+                            "type": "string"
                           },
-                          {
+                          "str": {
+                            "description": "The dimension value as a string",
                             "type": "string"
                           }
+                        },
+                        "required": [
+                          "seq",
+                          "dim",
+                          "str"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "seq": {
+                            "description": "The sequence ID (uuid v7 as an unsighed 128-bit integer)",
+                            "type": "string"
+                          },
+                          "dim": {
+                            "description": "The dimension key",
+                            "type": "string"
+                          },
+                          "num": {
+                            "description": "The dimension value as a number",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "seq",
+                          "dim",
+                          "num"
                         ]
                       }
-                    }
+                    ]
                   }
                 }
               }

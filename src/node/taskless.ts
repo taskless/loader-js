@@ -14,9 +14,11 @@ import {
   type MaybePromise,
   type HookName,
   type Logger,
-  type Entry,
   type NetworkPayload,
   type ConsolePayload,
+  type CaptureCallback,
+  type CaptureItem,
+  type Sends,
 } from "@~/types.js";
 import { createClient, type OASClient, type NormalizeOAS } from "fets";
 import { http, type StrictResponse } from "msw";
@@ -27,7 +29,6 @@ import { type LuaEngine, LuaFactory } from "wasmoon";
 import { InitializationError } from "./error.js";
 import { createLogger } from "./logger.js";
 import {
-  type CaptureCallback,
   createContextFunctions,
   createGlobals,
   createLocals,
@@ -35,6 +36,8 @@ import {
   createResponseFunctions,
 } from "./lua.js";
 import type openapi from "../__generated__/openapi.js";
+
+const id = () => `${v7().replaceAll("-", "")}`;
 
 /** Checks if a request is bypassed */
 const isBypassed = (request: Request) => {
@@ -93,6 +96,7 @@ const loadRules = async (
           packName: pack.name,
           packVersion: pack.version,
           configOrganizationId: resolvedConfig?.organizationId ?? "",
+          sendData: pack.sends,
         },
       });
     }
@@ -162,7 +166,7 @@ export const taskless = async (secret?: string, options?: InitOptions) => {
   const globalNS = "t" + v4().replaceAll("-", "");
   const logger = createLogger(options?.logLevel, options?.log);
   const client = createClient<NormalizeOAS<typeof openapi>>({
-    endpoint: `https://${options?.host ?? TASKLESS_HOST}`,
+    endpoint: (options?.endpoint ?? TASKLESS_HOST).replace(/\/$/, ""),
     globalParams: {
       headers: {
         authorization: `Bearer ${secret}`,
@@ -170,7 +174,7 @@ export const taskless = async (secret?: string, options?: InitOptions) => {
       },
     },
   });
-  const pending: Entry[] = [];
+  const pending: CaptureItem[] = [];
   let timer: NodeJS.Timeout;
 
   if (!secret && useNetwork) {
@@ -200,31 +204,47 @@ export const taskless = async (secret?: string, options?: InitOptions) => {
 
     // Compress the network payload into normalized form
     const networkPayload: NetworkPayload = {};
-    const consolePayload: ConsolePayload[] = [];
     for (const entry of entries) {
-      networkPayload[entry.requestId] ||= {};
-      networkPayload[entry.requestId][entry.url] ||= [];
-      networkPayload[entry.requestId][entry.url].push([
-        entry.dimension,
-        entry.value,
-      ]);
-      consolePayload.push({
-        requestId: entry.requestId,
-        url: entry.url,
-        dimension: entry.dimension,
-        value: entry.value,
-      });
-    }
+      if (useNetwork) {
+        networkPayload[entry.requestId] ||= [];
 
-    logger.debug(`Flushing pending telemetry (${consolePayload.length})`);
+        switch (entry.type) {
+          case "number": {
+            networkPayload[entry.requestId].push({
+              seq: entry.sequenceId,
+              dim: entry.dimension,
+              num: entry.value,
+            });
+            break;
+          }
 
-    if ((!useNetwork || options?.forceLog) && consolePayload.length > 0) {
-      logger.data(
-        consolePayload.map((item) => JSON.stringify(item)).join("\n")
-      );
+          case "string": {
+            networkPayload[entry.requestId].push({
+              seq: entry.sequenceId,
+              dim: entry.dimension,
+              str: entry.value,
+            });
+            break;
+          }
+        }
+      }
+
+      if (!useNetwork || options?.forceLog) {
+        logger.data(
+          JSON.stringify({
+            req: entry.requestId,
+            seq: entry.sequenceId,
+            dim: entry.dimension,
+            val: entry.value,
+          } satisfies ConsolePayload)
+        );
+      }
     }
 
     if (useNetwork) {
+      logger.debug(
+        `Flushing telemetry data to Taskless (batch size: ${Object.keys(networkPayload).length})`
+      );
       client["/{version}/events"]
         .post({
           json: networkPayload,
@@ -306,12 +326,13 @@ export const taskless = async (secret?: string, options?: InitOptions) => {
   }
 
   /** Captures a lua key/value data point and ties it to a request id */
-  const capture: CaptureCallback = (requestId, url, dimension, value) => {
+  const capture: CaptureCallback = (entry) => {
+    logger.debug(
+      `[${entry.requestId}] Captured ${entry.dimension} as ${entry.value}`
+    );
     pending.push({
-      requestId,
-      url,
-      dimension,
-      value,
+      ...entry,
+      sequenceId: id(),
     });
   };
 
@@ -331,23 +352,16 @@ export const taskless = async (secret?: string, options?: InitOptions) => {
 
       // our lua engine and a namespace safe for our JS bridge
       const lua = await promisedEngine;
-      const requestId = v7();
+      const requestId = id();
       logger.debug(`[${requestId}] started`);
-      const [request, context] = await Promise.all([
-        createRequestFunctions(info.request),
-        createContextFunctions(requestId),
-      ]);
-      const locals = await createLocals(requestId, {
-        logger,
-        getRequest: () => request.internal.current(),
-        capture,
-      });
 
       // build our middleware by executing every hook for a matching rule
       const hooks: Record<HookName, LifecycleHookData[]> = {
         pre: [],
         post: [],
       };
+
+      let sendData: Sends = {};
 
       // load all matching hooks
       for (const rule of rules) {
@@ -357,6 +371,10 @@ export const taskless = async (secret?: string, options?: InitOptions) => {
 
         // pre lifecycle is in forward order
         if (rule.hooks?.pre) {
+          sendData = {
+            ...sendData,
+            ...rule.__.sendData,
+          };
           hooks.pre.push({
             pack: `${rule.__.packName}@${rule.__.packVersion}`,
             hook: rule.hooks.pre.trim(),
@@ -365,6 +383,10 @@ export const taskless = async (secret?: string, options?: InitOptions) => {
 
         // post lifecycle is in reverse order
         if (rule.hooks?.post) {
+          sendData = {
+            ...sendData,
+            ...rule.__.sendData,
+          };
           hooks.post.unshift({
             pack: `${rule.__.packName}@${rule.__.packVersion}`,
             hook: rule.hooks.post.trim(),
@@ -372,6 +394,17 @@ export const taskless = async (secret?: string, options?: InitOptions) => {
         }
       }
 
+      const [request, context] = await Promise.all([
+        createRequestFunctions(info.request),
+        createContextFunctions(requestId),
+      ]);
+      const locals = await createLocals(requestId, {
+        logger,
+        sendData,
+        capture,
+      });
+
+      // PRE lifecycle
       await runLifecycle(
         lua,
         hooks.pre,
@@ -386,10 +419,27 @@ export const taskless = async (secret?: string, options?: InitOptions) => {
           debugName: `[${requestId}] hooks.pre`,
         }
       );
+
+      // Finalize and capture key data
       const finalizedRequest = request.internal.finalize();
+      capture({
+        requestId,
+        dimension: "url",
+        value: finalizedRequest.url,
+        type: "string",
+      });
+      capture({
+        requestId,
+        dimension: "domain",
+        value: new URL(finalizedRequest.url).hostname,
+        type: "string",
+      });
+
+      // Fetch
       finalizedRequest.headers.set("x-tskl-bypass", "1");
       const fetchResponse = await fetch(finalizedRequest);
 
+      // POST lifecycle
       const response = await createResponseFunctions(fetchResponse);
       await runLifecycle(
         lua,

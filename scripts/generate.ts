@@ -6,7 +6,7 @@ import { TASKLESS_HOST } from "@~/constants.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-const base = process.env.TASKLESS_HOST ?? `https://${TASKLESS_HOST}`;
+const base = process.env.TASKLESS_HOST ?? `${TASKLESS_HOST}`;
 const oapi = new URL(`${base}/.well-known/openapi.json`);
 
 const file = await fetch(oapi.toString());

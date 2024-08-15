@@ -1,7 +1,7 @@
 import { type Config } from "./types.js";
 
 /** The default Taskless host */
-export const TASKLESS_HOST = "data.tskl.es";
+export const TASKLESS_HOST = "https://data.tskl.es";
 
 /** Headers that change a request to one that bypasses our MSW interceptor */
 export const bypass = {

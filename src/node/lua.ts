@@ -1,6 +1,6 @@
 /* eslint-disable unicorn/numeric-separators-style */
 import { hrtime } from "node:process";
-import { type Logger } from "@~/types.js";
+import { type Sends, type Logger, type CaptureCallback } from "@~/types.js";
 import { base64ToString, stringToBase64 } from "uint8array-extras";
 import { type LuaEngine } from "wasmoon";
 import { LuaError } from "./error.js";
@@ -30,24 +30,16 @@ export const createGlobals = () => {
   };
 };
 
-type GetCurrentRequestCallback = () => Request;
-export type CaptureCallback = (
-  id: string,
-  url: string,
-  key: string,
-  value: string | number
-) => void;
-
 /** Create locals - context aware lua functions */
 export const createLocals = async (
   requestId: string,
   {
     logger,
-    getRequest,
+    sendData,
     capture,
   }: {
     logger: Logger;
-    getRequest: GetCurrentRequestCallback;
+    sendData: Sends;
     capture: CaptureCallback;
   }
 ) => {
@@ -75,8 +67,19 @@ export const createLocals = async (
     lua: {
       log,
       send(key: string, value: string | number) {
-        const url = getRequest().url;
-        capture(requestId, url, key, value);
+        const type = sendData?.[key]?.type;
+        if (type) {
+          capture({
+            requestId,
+            dimension: key,
+            value: `${value}`,
+            type,
+          });
+        } else {
+          logger.error(
+            `[${requestId}] Unable to capture ${key}, no type for ${type} is available`
+          );
+        }
       },
     },
   };

@@ -1,12 +1,16 @@
 import { readFile } from "node:fs/promises";
 import { taskless } from "@~/core.js";
-import { type Config, type NetworkPayload, type Pack } from "@~/types.js";
+import {
+  type ConsolePayload,
+  type Config,
+  type NetworkPayload,
+  type Pack,
+} from "@~/types.js";
 import yaml from "js-yaml";
 import { http } from "msw";
 import { setupServer } from "msw/node";
-import { type JsonObject } from "type-fest";
 import { describe, expect, test, vi } from "vitest";
-import { findPayload } from "./helpers/findPayload.js";
+import { extractDimension, findLog, findPayload } from "./helpers/find.js";
 import { sleep } from "./helpers/sleep.js";
 
 describe("Loading packs", () => {
@@ -45,10 +49,10 @@ describe("Loading packs", () => {
     );
 
     // captured logs from this run
-    const logs: JsonObject[] = [];
+    const logs: ConsolePayload[] = [];
     const logData = vi.fn((line: string) => {
       for (const ln of line.split(/\n/)) {
-        logs.push(JSON.parse(ln) as JsonObject);
+        logs.push(JSON.parse(ln) as ConsolePayload);
       }
     });
 
@@ -74,10 +78,14 @@ describe("Loading packs", () => {
     // after loading, we need to add a rule to MSW for catching network requests
     // this ensures our telemetry calls aren't bypassed by the load() call
     // we store payloads for analysis later
-    const payloads: NetworkPayload[] = [];
+    const payloads: Array<NonNullable<NetworkPayload>> = [];
     msw.use(
-      http.post("https://data.tskl.es/:version/event", async (info) => {
+      http.post("https://data.tskl.es/:version/events", async (info) => {
         const body = (await info.request.clone().json()) as NetworkPayload;
+        if (!body) {
+          throw new Error("No body found in request");
+        }
+
         payloads.push(body);
         return new Response(JSON.stringify({}), {
           status: 200,
@@ -96,34 +104,55 @@ describe("Loading packs", () => {
     await sleep(30);
 
     // validate expected behaviors
-    expect(logs, "Recorded duration attribute").toContainEqual(
-      expect.objectContaining({
-        dimension: "durationMs",
-        url: "https://example.com/sample",
-      })
-    );
-
-    expect(logs, "Recorded status attribute").toContainEqual(
-      expect.objectContaining({
-        dimension: "status",
-        url: "https://example.com/sample",
-      })
-    );
+    expect(
+      extractDimension(
+        findLog(logs, [
+          {
+            dimension: "durationMs",
+          },
+        ])?.[0],
+        "url"
+      ),
+      "Recorded duration attribute for URL"
+    ).toEqual("https://example.com/sample");
 
     expect(
-      findPayload(payloads, {
-        url: "https://example.com/sample",
-        dimension: "durationMs",
-      }),
+      extractDimension(
+        findLog(logs, [
+          {
+            dimension: "status",
+            value: 200,
+          },
+        ])?.[0],
+        "url"
+      ),
+      "Recorded successful 200 for URL"
+    ).toEqual("https://example.com/sample");
+
+    expect(
+      findPayload(payloads, [
+        {
+          dimension: "durationMs",
+        },
+        {
+          dimension: "url",
+          value: "https://example.com/sample",
+        },
+      ]),
       "Sent a payload with the durationMs dimension"
     ).toHaveLength(1);
 
     expect(
-      findPayload(payloads, {
-        url: "https://example.com/sample",
-        dimension: "status",
-        value: 200,
-      }),
+      findPayload(payloads, [
+        {
+          dimension: "status",
+          value: 200,
+        },
+        {
+          dimension: "url",
+          value: "https://example.com/sample",
+        },
+      ]),
       "Sent a payload with the status dimension and the status code"
     ).toHaveLength(1);
 

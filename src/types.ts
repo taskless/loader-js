@@ -1,4 +1,4 @@
-import { type NormalizeOAS, type OASOutput } from "fets";
+import { type OASInput, type NormalizeOAS, type OASOutput } from "fets";
 import { type SetupServerApi } from "msw/node";
 import type openapi from "./__generated__/openapi.js";
 
@@ -32,9 +32,9 @@ export type InitOptions = {
    */
   network?: boolean;
   /**
-   * Specify a host for receiving Taskless data. Defaults to "data.tskl.es"
+   * Specify an endpoint for receiving Taskless data. Defaults to "https://data.tskl.es"
    */
-  host?: string;
+  endpoint?: string;
   /**
    * Override the logging object, defaults to console for all operations
    */
@@ -74,6 +74,8 @@ export type Pack = Config["packs"][number];
 export type Rule = Pack["rules"][number];
 /** Creates a pick-list of valid hook types */
 export type HookName = keyof NonNullable<Rule["hooks"]>;
+/** Pack sends collection */
+export type Sends = Pack["sends"];
 
 /** Describes a denormalized rule, supplemented with information from its parent object(s) */
 export type DenormalizedRule = Rule & {
@@ -82,19 +84,35 @@ export type DenormalizedRule = Rule & {
     packName: string;
     packVersion: string;
     configOrganizationId: string;
+    sendData: Sends;
   };
 };
 
-export type Entry = {
-  requestId: string;
-  url: string;
-  dimension: string;
-  value: string | number;
-};
-
-export type NetworkPayload = Record<
-  string,
-  Record<string, Array<[string, string | number]>>
+/** Network payload intended for Taskless */
+export type NetworkPayload = NonNullable<
+  OASInput<NormalizeOAS<typeof openapi>, "/{version}/events", "post", "json">
 >;
 
-export type ConsolePayload = Entry;
+/** Console payload intended for stdout */
+export type ConsolePayload = {
+  /** The request ID */
+  req: string;
+  /** The sequenceID */
+  seq: string;
+  /** The dimension name */
+  dim: string;
+  /** The dimension's value */
+  val: string;
+};
+
+/** The object generated during a telemetry capture */
+export type CaptureItem = {
+  requestId: string;
+  sequenceId: string;
+  dimension: string;
+  value: string;
+  type: NonNullable<Sends>[string]["type"];
+};
+
+/** The capture callback does not include a sequence id by default. It is added later */
+export type CaptureCallback = (entry: Omit<CaptureItem, "sequenceId">) => void;
