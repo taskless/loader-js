@@ -22,13 +22,17 @@ TASKLESS_API_KEY="your api key" node --import="@taskless/loader" start.js
 
 # Advanced Features
 
+## Autoloading Options
+
+| env                   | values                           | description                                         |
+| :-------------------- | :------------------------------- | :-------------------------------------------------- |
+| `TASKLESS_API_KEY`    | `string`                         | Your Taskless API key                               |
+| `TASKLESS_LOCAL_MODE` | `1`                              | Disables network requests and enables local logging |
+| `TASKLESS_LOG_LEVEL`  | `debug`, `info`, `warn`, `error` | Sets the log level                                  |
+
 ## Programatic API
 
-A programatic API is available by importing `taskless` from `@taskless/loader/core`. It's configured with your API key and allows for features like ndjson logs, local (offline) packs, and more. We encourage you to explore the TypeScript types to see what's available.
-
-## Disabling Network Requests
-
-If you're working offline, building tests around Taskless, or just want to run Taskless in a restricted environment, you can disable network requests in the autoloader by setting the `TASKLESS_LOCAL_MODE` environment variable to `1` or in the programatic API setting `network: false`. When network requests are disabled, any packs that make network calls will result in a noop.
+A programatic API is available by importing `taskless` from `@taskless/loader/core`. It's signature is `taskless(secret: string, options: Options):API`. We encourage you to explore the TypeScript types to see what's available.
 
 # License
 
