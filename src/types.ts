@@ -116,3 +116,29 @@ export type CaptureItem = {
 
 /** The capture callback does not include a sequence id by default. It is added later */
 export type CaptureCallback = (entry: Omit<CaptureItem, "sequenceId">) => void;
+
+export type LuaBridgeFunction = (...args: any[]) => unknown;
+
+/**
+ * Describes a set of lua functions that run in the native language,
+ * via functions.*, and any internal functions that are not exposed via
+ * internal.*
+ **/
+export type LuaBridge<
+  TInternal = Record<string, (...args: any[]) => MaybePromise<unknown>>,
+> = {
+  functions: Record<string, LuaBridgeFunction>;
+  internal: TInternal;
+};
+
+export type LuaBridgeBuilder<
+  T = undefined,
+  TInternal = Record<string, never>,
+> = T extends undefined
+  ? (options: { logger: Logger }) => MaybePromise<LuaBridge<TInternal>>
+  : (
+      options: {
+        logger: Logger;
+      },
+      builderOptions: T
+    ) => MaybePromise<LuaBridge<TInternal>>;

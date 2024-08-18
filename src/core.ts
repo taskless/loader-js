@@ -1,1 +1,1 @@
-export { taskless } from "./node/taskless.js";
+export { taskless } from "./lib/taskless.js";

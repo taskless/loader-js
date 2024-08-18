@@ -6,153 +6,42 @@ import {
   noop,
   TASKLESS_HOST,
 } from "@~/constants.js";
+import { captureFunctions } from "@~/lua/capture.bridge.js";
+import { contextFunctions } from "@~/lua/context.bridge.js";
+import { logFunctions } from "@~/lua/log.bridge.js";
+import { usePromise } from "@~/lua/promise.lua.js";
+import { requestFunctions } from "@~/lua/request.bridge.js";
+import { responseFunctions } from "@~/lua/response.bridge.js";
+import { stringFunctions } from "@~/lua/string.bridge.js";
+import { timeFunctions } from "@~/lua/time.bridge.js";
 import {
   type Pack,
-  type Config,
   type InitOptions,
   type DenormalizedRule,
-  type MaybePromise,
   type HookName,
-  type Logger,
   type NetworkPayload,
   type ConsolePayload,
   type CaptureCallback,
   type CaptureItem,
   type Sends,
 } from "@~/types.js";
-import { createClient, type OASClient, type NormalizeOAS } from "fets";
+import { createClient, type NormalizeOAS } from "fets";
 import { http, type StrictResponse } from "msw";
 import { setupServer } from "msw/node";
-import { dedent } from "ts-dedent";
-import { v4, v7 } from "uuid";
+import { v7 } from "uuid";
 import { type LuaEngine, LuaFactory } from "wasmoon";
 import { InitializationError } from "./error.js";
 import { createLogger } from "./logger.js";
-import {
-  createContextFunctions,
-  createGlobals,
-  createLocals,
-  createRequestFunctions,
-  createResponseFunctions,
-} from "./lua.js";
+import { runLifecycle } from "./lua.js";
+import { extractPacks, getConfig, loadRules } from "./service.js";
 import type openapi from "../__generated__/openapi.js";
 
+/** create a 128 bit uuid7 and remove the dashes, turning it into a k-ordered bigint in hex */
 const id = () => `${v7().replaceAll("-", "")}`;
 
 /** Checks if a request is bypassed */
 const isBypassed = (request: Request) => {
   return request.headers.get("x-tskl-bypass") === "1";
-};
-
-/** Extract all packs from the config, ensuring the config is resolved */
-const extractPacks = async (packs: Promise<Config>) => {
-  const data = await packs;
-  return data?.packs ?? [];
-};
-
-/** Fetch the configuration from taskless using the provided API secret */
-const getConfig = async (
-  secret: string,
-  {
-    logger,
-    client,
-  }: { logger: Logger; client: OASClient<NormalizeOAS<typeof openapi>> }
-): Promise<Config> => {
-  const response = await client["/{version}/config"].get({
-    params: {
-      version: "v1",
-    },
-  });
-
-  if (!response.ok) {
-    logger.error(
-      `Failed to fetch configuration: ${response.status} ${response.statusText}. Taskless will not apply rules.`
-    );
-    return emptyConfig;
-  }
-
-  const data = await response.json();
-
-  logger.debug(
-    `Retrieved configuration from Taskless (orgId: ${data.organizationId}, schema: ${data.__v})`
-  );
-  return data;
-};
-
-/** Load rules into a denormalized form */
-const loadRules = async (
-  packs: MaybePromise<Pack[]>,
-  config: MaybePromise<Config | undefined>
-) => {
-  const [resolvedPacks, resolvedConfig] = await Promise.all([packs, config]);
-  const flatRules: DenormalizedRule[] = [];
-
-  for (const pack of resolvedPacks) {
-    for (const rule of pack.rules) {
-      flatRules.push({
-        ...rule,
-        __: {
-          matches: new RegExp(rule.matches),
-          packName: pack.name,
-          packVersion: pack.version,
-          configOrganizationId: resolvedConfig?.organizationId ?? "",
-          sendData: pack.sends,
-        },
-      });
-    }
-  }
-
-  return flatRules;
-};
-
-/** Describes a lifecycle hook, both its lua script and the pack it came from */
-type LifecycleHookData = { pack: string; hook: string };
-
-/** Runs a lua script with local context features and cleans up after itself */
-const runLifecycle = async (
-  lua: LuaEngine,
-  blocks: LifecycleHookData[],
-  functions: Record<string, unknown>,
-  { logger, debugName }: { logger: Logger; debugName: string }
-) => {
-  const ns = "t" + v4().replaceAll("-", "");
-  const scopedFunctions: string[] = [];
-  lua.global.set(ns, functions);
-
-  for (const function_ of Object.keys(functions)) {
-    scopedFunctions.push(`local ${function_} = ${ns}.${function_}`);
-  }
-
-  const scripts = blocks.map((block, index) => {
-    // set the locals for execution, followed by the block
-    // then, run the blocked out function
-    return dedent`
-      -- START: ${block.pack}
-      local ${ns}_fn_${index} = function()
-        ${scopedFunctions.join("\n")}
-        ${block.hook}
-      end
-      ${ns}_fn_${index}()
-      ${ns}_fn_${index} = nil
-      -- END: ${block.pack}
-    `.trim();
-  });
-
-  // our local script also cleans the ns when done
-  const localScript = dedent`
-    -- START: ${debugName}
-    local ${ns}_fn = function()
-      ${scripts.join("\n  ")}
-    end
-    ${ns}_fn()
-    ${ns}_fn = nil
-    ${ns} = nil
-    -- END: ${debugName}
-  `.trim();
-
-  logger.debug(`${debugName} lua contents:\n${localScript}`);
-
-  await lua.doString(localScript);
 };
 
 /**
@@ -162,8 +51,7 @@ const runLifecycle = async (
  */
 export const taskless = async (secret?: string, options?: InitOptions) => {
   const useNetwork = options?.network !== false;
-  const universalFunctions = createGlobals();
-  const globalNS = "t" + v4().replaceAll("-", "");
+  const useLogging = options?.forceLog === true;
   const logger = createLogger(options?.logLevel, options?.log);
   const client = createClient<NormalizeOAS<typeof openapi>>({
     endpoint: (options?.endpoint ?? TASKLESS_HOST).replace(/\/$/, ""),
@@ -177,9 +65,9 @@ export const taskless = async (secret?: string, options?: InitOptions) => {
   const pending: CaptureItem[] = [];
   let timer: NodeJS.Timeout;
 
-  if (!secret && useNetwork) {
-    throw new Error(
-      "Taskless API Key is missing or may not be corectly included"
+  if (!secret && useNetwork && !useLogging) {
+    throw new InitializationError(
+      "API secret was not provided and local logging was not enabled. Taskless will not capture any telemetry."
     );
   }
 
@@ -229,7 +117,7 @@ export const taskless = async (secret?: string, options?: InitOptions) => {
         }
       }
 
-      if (!useNetwork || options?.forceLog) {
+      if (useLogging) {
         logger.data(
           JSON.stringify({
             req: entry.requestId,
@@ -293,7 +181,6 @@ export const taskless = async (secret?: string, options?: InitOptions) => {
 
     const lua = await promisedEngine;
     resolvedLua = lua;
-    lua.global.set(globalNS, universalFunctions);
 
     rules.push(...[remote, local].flat());
 
@@ -325,7 +212,11 @@ export const taskless = async (secret?: string, options?: InitOptions) => {
     });
   }
 
-  /** Captures a lua key/value data point and ties it to a request id */
+  /**
+   * Captures a lua key/value data point and assigns it a sequence id
+   * This is externalized from the lifecycle so that our id() function
+   * creates monotonic increasing values for each telemetry point
+   */
   const capture: CaptureCallback = (entry) => {
     logger.debug(
       `[${entry.requestId}] Captured ${entry.dimension} as ${entry.value}`
@@ -356,7 +247,7 @@ export const taskless = async (secret?: string, options?: InitOptions) => {
       logger.debug(`[${requestId}] started`);
 
       // build our middleware by executing every hook for a matching rule
-      const hooks: Record<HookName, LifecycleHookData[]> = {
+      const hooks: Record<HookName, string[]> = {
         pre: [],
         post: [],
       };
@@ -375,10 +266,7 @@ export const taskless = async (secret?: string, options?: InitOptions) => {
             ...sendData,
             ...rule.__.sendData,
           };
-          hooks.pre.push({
-            pack: `${rule.__.packName}@${rule.__.packVersion}`,
-            hook: rule.hooks.pre.trim(),
-          });
+          hooks.pre.push(rule.hooks.pre.trim());
         }
 
         // post lifecycle is in reverse order
@@ -387,41 +275,57 @@ export const taskless = async (secret?: string, options?: InitOptions) => {
             ...sendData,
             ...rule.__.sendData,
           };
-          hooks.post.unshift({
-            pack: `${rule.__.packName}@${rule.__.packVersion}`,
-            hook: rule.hooks.post.trim(),
-          });
+          hooks.post.unshift(rule.hooks.post.trim());
         }
       }
 
-      const [request, context] = await Promise.all([
-        createRequestFunctions(info.request),
-        createContextFunctions(requestId),
+      const [logLibrary, stringLibrary, timeLibrary, contextLibrary] =
+        await Promise.all([
+          logFunctions({ logger }),
+          stringFunctions({ logger }),
+          timeFunctions({ logger }),
+          contextFunctions({ logger }),
+        ]);
+
+      const [requestLibrary, tasklessLibrary] = await Promise.all([
+        requestFunctions({ logger }, { request: info.request }),
+        captureFunctions(
+          {
+            logger,
+          },
+          {
+            capture,
+            requestId,
+            sends: sendData,
+          }
+        ),
       ]);
-      const locals = await createLocals(requestId, {
-        logger,
-        sendData,
-        capture,
-      });
+
+      const requestLocals = {
+        // available non-namespaced
+        ...logLibrary.functions,
+        ...stringLibrary.functions,
+        ...timeLibrary.functions,
+        // in namespace
+        context: contextLibrary.functions,
+        request: requestLibrary.functions,
+        taskless: tasklessLibrary.functions,
+      };
 
       // PRE lifecycle
       await runLifecycle(
         lua,
-        hooks.pre,
         {
-          context: context.lua,
-          request: request.lua,
-          ...locals.lua,
-          ...universalFunctions.lua,
+          set: requestLocals,
+          blocks: hooks.pre,
+          async: ["request.getBody"],
+          headers: [await usePromise(lua)],
         },
-        {
-          logger,
-          debugName: `[${requestId}] hooks.pre`,
-        }
+        { logger, debugId: `${requestId}.hooks.pre` }
       );
 
       // Finalize and capture key data
-      const finalizedRequest = request.internal.finalize();
+      const finalizedRequest = requestLibrary.internal.finalize();
       capture({
         requestId,
         dimension: "url",
@@ -439,25 +343,29 @@ export const taskless = async (secret?: string, options?: InitOptions) => {
       finalizedRequest.headers.set("x-tskl-bypass", "1");
       const fetchResponse = await fetch(finalizedRequest);
 
+      // add to our locals for the response
+      const [responseLibrary] = await Promise.all([
+        responseFunctions({ logger }, { response: fetchResponse }),
+      ]);
+
+      const responseLocals = {
+        ...requestLocals,
+        response: responseLibrary.functions,
+      };
+
       // POST lifecycle
-      const response = await createResponseFunctions(fetchResponse);
       await runLifecycle(
         lua,
-        hooks.post,
         {
-          context: context.lua,
-          request: request.lua,
-          response: response.lua,
-          ...locals.lua,
-          ...universalFunctions.lua,
+          set: responseLocals,
+          blocks: hooks.post,
+          async: ["request.getBody", "response.getBody"],
+          headers: [await usePromise(lua)],
         },
-        {
-          logger,
-          debugName: `[${requestId}] hooks.post`,
-        }
+        { logger, debugId: `${requestId}.hooks.post` }
       );
 
-      return response.internal.finalize() as StrictResponse<any>;
+      return responseLibrary.internal.finalize() as StrictResponse<any>;
     })
   );
 
@@ -466,14 +374,16 @@ export const taskless = async (secret?: string, options?: InitOptions) => {
     add(pack: Pack) {
       localPacks.push(pack);
     },
+    /** get the current logger */
     logger() {
       return logger;
     },
+    /** Explicitly flush any pending logs. Useful before shutting down to ensure all events are captured */
     flush() {
       clearTimeout(timer);
       flush();
     },
-    /** Trigger the loading of all packs */
+    /** Load all registered packs and initialize Taskless */
     async load() {
       await initialize();
       const remotePacks = await promisedPacks;

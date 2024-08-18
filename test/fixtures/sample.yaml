@@ -4,6 +4,9 @@ name: "@taskless/test"
 version: "1.0.0"
 description: Test pack with basic functionality expressed
 sends:
+  start:
+    type: "number"
+    description: "The start time of the request"
   durationMs:
     type: "number"
     description: "The duration of the request in milliseconds"
@@ -16,5 +19,5 @@ rules:
       pre: |
         context.set("start", now())
       post: |
-        send("durationMs", now() - context.get("start"))
-        send("status", response.getStatus())
+        taskless.capture("durationMs", now() - context.get("start"))
+        taskless.capture("status", response.getStatus())

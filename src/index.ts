@@ -2,7 +2,7 @@
 /* eslint-disable n/no-process-env */
 import process from "node:process";
 import { TASKLESS_HOST } from "./constants.js";
-import { autoload as taskless } from "./node/taskless.js";
+import { autoload as taskless } from "./lib/taskless.js";
 import { isLogLevel } from "./types.js";
 
 /**
@@ -24,7 +24,7 @@ const TASKLESS_LOG_LEVEL = isLogLevel(process.env.TASKLESS_LOG_LEVEL)
 // taskless will by default auto-initialize, fetching remote
 // packs and patching the runtime
 taskless(TASKLESS_API_KEY, {
-  host: TASKLESS_HOST,
+  endpoint: TASKLESS_HOST,
   network: TASKLESS_LOCAL_MODE !== "1",
   logLevel: TASKLESS_LOG_LEVEL,
 }).catch((error) => {

@@ -33,4 +33,24 @@ describe("Taskless environment and importing", () => {
 
     expect(stdout).toMatch(/taskless autoloader ran successfully/i);
   });
+
+  test("Will not start unless an api key or local mode is enabled", async () => {
+    const { stdout, stderr } = await execa({
+      preferLocal: true,
+      env: {
+        TASKLESS_LOG_LEVEL: "debug",
+      },
+      cwd: resolve(dirname(fileURLToPath(import.meta.url)), "../"),
+    })`tsx --import=./src/index.ts test/fixtures/end.ts`;
+
+    expect(stdout, "Loads successfully").not.toMatch(
+      /taskless autoloader ran successfully/i
+    );
+    expect(
+      stderr,
+      "Prevcents load with no API key and no logging enabled"
+    ).toMatch(
+      /initializationerror: api secret was not provided and local logging was not enabled/i
+    );
+  });
 });
