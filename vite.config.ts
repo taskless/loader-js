@@ -15,7 +15,6 @@ export default defineConfig({
     dts({ insertTypesEntry: true, include: Object.values(ENTRY_POINTS) }),
   ],
   build: {
-    emptyOutDir: false,
     outDir: "dist",
     sourcemap: true,
     lib: {
