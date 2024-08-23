@@ -1,14 +1,11 @@
-import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
 import { nextTick } from "node:process";
-import { fileURLToPath } from "node:url";
 import { dedent } from "ts-dedent";
 import { v4 } from "uuid";
 import { type LuaEngine } from "wasmoon";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const file = readFileSync(resolve(__dirname, "./promise.lua"), "utf8");
-const luaPromise = file.toString();
+// @ts-expect-error vite import is a FS bundled import
+// eslint-disable-next-line n/file-extension-in-import
+import luaPromise from "./promise.lua?raw";
 
 type UnknownFunction = (...args: unknown[]) => unknown;
 

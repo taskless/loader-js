@@ -12,7 +12,9 @@ export default defineConfig({
   plugins: [
     tsconfigPaths(),
     externalizeDeps(),
-    dts({ insertTypesEntry: true, include: Object.values(ENTRY_POINTS) }),
+    dts({
+      include: Object.values(ENTRY_POINTS),
+    }),
   ],
   build: {
     outDir: "dist",
@@ -24,6 +26,9 @@ export default defineConfig({
     },
     rollupOptions: {
       input: ENTRY_POINTS,
+      output: {
+        preserveModules: true,
+      },
     },
   },
 });
