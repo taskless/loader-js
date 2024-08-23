@@ -38,9 +38,7 @@ export const responseFunctions: LuaBridgeBuilder<
         // keep everything synchronous in lua, but update
         // the request object as well so it stays current
         current = new Response(data, {
-          status: current.status,
-          statusText: current.statusText,
-          headers: current.headers,
+          ...current,
         });
       },
       getHeader(name: string) {
@@ -51,8 +49,7 @@ export const responseFunctions: LuaBridgeBuilder<
         const headers = new Headers(current.headers);
         headers.set(name, value);
         current = new Response(current.body, {
-          status: current.status,
-          statusText: current.statusText,
+          ...current,
           headers,
         });
       },
@@ -62,9 +59,8 @@ export const responseFunctions: LuaBridgeBuilder<
       setStatus(status: number) {
         checkLock();
         current = new Response(current.body, {
+          ...current,
           status,
-          statusText: current.statusText,
-          headers: current.headers,
         });
       },
     },
