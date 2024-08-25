@@ -6,7 +6,6 @@ import {
   type NetworkPayload,
   type Pack,
 } from "@~/types.js";
-import yaml from "js-yaml";
 import { http } from "msw";
 import { setupServer } from "msw/node";
 import { describe, expect, test, vi } from "vitest";
@@ -68,8 +67,7 @@ describe("Loading packs", () => {
     });
 
     const file = await readFile("test/fixtures/sample.yaml", "utf8");
-    const json = yaml.load(file) as Pack;
-    t.add(json);
+    t.add(file);
 
     // validate load
     const stats = await t.load();

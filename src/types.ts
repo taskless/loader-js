@@ -63,7 +63,7 @@ export type InitOptions = {
 };
 
 export type TasklessAPI = {
-  add(pack: Pack): void;
+  add(pack: string | Pack): void;
   logger(): Logger;
   flush(): void;
   load(): Promise<{

@@ -8,6 +8,9 @@ dependencies:
   fets:
     specifier: ^0.8.2
     version: 0.8.2
+  js-yaml:
+    specifier: ^4.1.0
+    version: 4.1.0
   msw:
     specifier: ^2.3.5
     version: 2.3.5(typescript@5.4.5)
@@ -49,9 +52,6 @@ devDependencies:
   husky:
     specifier: ^9.0.11
     version: 9.0.11
-  js-yaml:
-    specifier: ^4.1.0
-    version: 4.1.0
   lint-staged:
     specifier: ^15.2.4
     version: 15.2.7
@@ -1866,7 +1866,6 @@ packages:
 
   /argparse@2.0.1:
     resolution: {integrity: sha512-8+9WqebbFzpX9OR+Wa6O29asIogeRMzcGtAINdpMHHyAg10f05aSFVBbcEqGf/PXw1EjAZ+q2/bEBg3DvurK3Q==}
-    dev: true
 
   /array-buffer-byte-length@1.0.1:
     resolution: {integrity: sha512-ahC5W1xgou+KTXix4sAO8Ki12Q+jf4i0+tmk3sC+zgcynshkHxzpXdImBehiUYKKKDwvfFiJl1tZt6ewscS1Mg==}
@@ -4073,7 +4072,6 @@ packages:
     hasBin: true
     dependencies:
       argparse: 2.0.1
-    dev: true
 
   /jsesc@0.5.0:
     resolution: {integrity: sha512-uZz5UnB7u4T9LvwmFqXii7pZSouaRPorGs5who1Ip7VO0wxanFvBL7GkM6dTHlgX+jhBApRetaWpnDabOeTcnA==}

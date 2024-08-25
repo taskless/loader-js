@@ -27,6 +27,7 @@ import {
   type TasklessAPI,
 } from "@~/types.js";
 import { createClient, type NormalizeOAS } from "fets";
+import yaml from "js-yaml";
 import { http, type StrictResponse } from "msw";
 import { setupServer } from "msw/node";
 import { v7 } from "uuid";
@@ -412,8 +413,9 @@ export const taskless = async (
 
   const api = {
     /** add additional local packs programatically */
-    add(pack: Pack) {
-      localPacks.push(pack);
+    add(pack: string) {
+      const data = typeof pack === "string" ? (yaml.load(pack) as Pack) : pack;
+      localPacks.push(data);
     },
     /** get the current logger */
     logger() {
