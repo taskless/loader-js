@@ -14,7 +14,7 @@ import { isLogLevel } from "./types.js";
 const TASKLESS_API_KEY = process.env.TASKLESS_API_KEY;
 
 /** Local Mode Enabled - ndjson local logging */
-const TASKLESS_LOCAL_MODE = process.env.TASKLESS_LOCAL_MODE;
+const TASKLESS_LOGGING = process.env.TASKLESS_LOGGING;
 
 /** Debug Enabled */
 const TASKLESS_LOG_LEVEL = isLogLevel(process.env.TASKLESS_LOG_LEVEL)
@@ -25,7 +25,7 @@ const TASKLESS_LOG_LEVEL = isLogLevel(process.env.TASKLESS_LOG_LEVEL)
 // packs and patching the runtime
 taskless(TASKLESS_API_KEY, {
   endpoint: TASKLESS_HOST,
-  network: TASKLESS_LOCAL_MODE !== "1",
+  logging: TASKLESS_LOGGING === "1",
   logLevel: TASKLESS_LOG_LEVEL,
 }).catch((error) => {
   console.error(error);

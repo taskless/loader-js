@@ -44,9 +44,9 @@ export type InitOptions = {
    */
   logLevel?: LogLevel;
   /**
-   * Force logging of all data elements requests, even when network is enabled
+   * Force logging of all data elements requests, even when network is enabled. Defaults to !network
    */
-  forceLog?: boolean;
+  logging?: boolean;
   /**
    * Set a flush interval different from the default 2000ms
    */
@@ -60,6 +60,17 @@ export type InitOptions = {
      */
     msw?: SetupServerApi;
   };
+};
+
+export type TasklessAPI = {
+  add(pack: Pack): void;
+  logger(): Logger;
+  flush(): void;
+  load(): Promise<{
+    network: boolean;
+    remotePacks: number;
+    localPacks: number;
+  }>;
 };
 
 /** Describes the Taskless configuration */

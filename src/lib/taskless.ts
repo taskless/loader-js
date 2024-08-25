@@ -24,6 +24,7 @@ import {
   type CaptureCallback,
   type CaptureItem,
   type Sends,
+  type TasklessAPI,
 } from "@~/types.js";
 import { createClient, type NormalizeOAS } from "fets";
 import { http, type StrictResponse } from "msw";
@@ -44,14 +45,38 @@ const isBypassed = (request: Request) => {
   return request.headers.get("x-tskl-bypass") === "1";
 };
 
+// a throwable function
+const createThrowable =
+  <T extends Error>(error: T): ((...args: any[]) => any) =>
+  () => {
+    // eslint-disable-next-line @typescript-eslint/no-throw-literal
+    throw error;
+  };
+
+/** A default no-op API */
+const createErrorAPI = <T extends Error>(errror: T): TasklessAPI => ({
+  add: createThrowable(errror),
+  flush: createThrowable(errror),
+  logger: createThrowable(errror),
+  load: createThrowable(errror),
+});
+
 /**
  * Taskless
  * Create an instance of the Taskless loader, retrieve remote configurations,
  * and take control of your third party APIs.
  */
-export const taskless = async (secret?: string, options?: InitOptions) => {
-  const useNetwork = options?.network !== false;
-  const useLogging = options?.forceLog === true;
+export const taskless = async (
+  secret?: string,
+  options?: InitOptions
+): Promise<TasklessAPI> => {
+  // Network opt-in or secret required
+  const useNetwork = Boolean(options?.network ?? (secret && secret.length > 0));
+
+  // prefer explicit set, defaulting to the inverse of useNetwork
+  const useLogging =
+    options?.logging === undefined ? !useNetwork : Boolean(options.logging);
+
   const logger = createLogger(options?.logLevel, options?.log);
   const client = createClient<NormalizeOAS<typeof openapi>>({
     endpoint: (options?.endpoint ?? TASKLESS_HOST).replace(/\/$/, ""),
@@ -65,10 +90,26 @@ export const taskless = async (secret?: string, options?: InitOptions) => {
   const pending: CaptureItem[] = [];
   let timer: NodeJS.Timeout;
 
-  if (!secret && useNetwork && !useLogging) {
-    throw new InitializationError(
-      "API secret was not provided and local logging was not enabled. Taskless will not capture any telemetry."
-    );
+  if (!useNetwork && !useLogging) {
+    return {
+      ...createErrorAPI(
+        new InitializationError(
+          "Network and logging are both disabled. No telemetry will be captured"
+        )
+      ),
+      logger: () => logger,
+    };
+  }
+
+  if (useNetwork && !secret) {
+    return {
+      ...createErrorAPI(
+        new InitializationError(
+          "Network is enabled, but no secret was provided."
+        )
+      ),
+      logger: () => logger,
+    };
   }
 
   /** Start the drain of telemetry data */
@@ -369,7 +410,7 @@ export const taskless = async (secret?: string, options?: InitOptions) => {
     })
   );
 
-  return {
+  const api = {
     /** add additional local packs programatically */
     add(pack: Pack) {
       localPacks.push(pack);
@@ -394,12 +435,22 @@ export const taskless = async (secret?: string, options?: InitOptions) => {
       };
     },
   };
+
+  return api;
 };
 
 /** Autoloading interface for Taskless, hides manual pack loading and automatically initializes */
 export const autoload = async (secret?: string, options?: InitOptions) => {
   const t = await taskless(secret, options);
-  await t.load();
-  t.logger().debug("Taskless Autoloader ran successfully");
-  return {};
+  try {
+    await t.load();
+    t.logger().debug("Taskless Autoloader ran successfully");
+    return {};
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    }
+  }
+
+  throw new InitializationError("Taskless Autoloader failed to run");
 };

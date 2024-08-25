@@ -58,7 +58,7 @@ describe("Loading packs", () => {
 
     const t = await taskless("test", {
       // logLevel: "debug",
-      forceLog: true,
+      logging: true,
       log: {
         data: logData,
       },

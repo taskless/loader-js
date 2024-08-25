@@ -25,7 +25,7 @@ describe("Taskless environment and importing", () => {
     const { stdout, stderr } = await execa({
       preferLocal: true,
       env: {
-        TASKLESS_LOCAL_MODE: "1",
+        TASKLESS_LOGGING: "1",
         TASKLESS_LOG_LEVEL: "debug",
       },
       cwd: resolve(dirname(fileURLToPath(import.meta.url)), "../"),
@@ -49,8 +49,6 @@ describe("Taskless environment and importing", () => {
     expect(
       stderr,
       "Prevcents load with no API key and no logging enabled"
-    ).toMatch(
-      /initializationerror: api secret was not provided and local logging was not enabled/i
-    );
+    ).toMatch(/InitializationError:/);
   });
 });
