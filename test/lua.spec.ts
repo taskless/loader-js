@@ -82,4 +82,37 @@ describe("Lua environment capabilities", (t) => {
 
     expect(true).toBe(true);
   });
+
+  test("Promise library tests", async ({ expect, lua }) => {
+    const promiseLibrary = await usePromise(lua);
+    const sequence = vi.fn();
+    lua.global.set("sequence", sequence);
+
+    const fixture = dedent`
+      local run = function()
+        ${promiseLibrary}
+
+        sequence("start")
+        promise = Promise.new()
+        promise:next(function()
+          -- complete
+          sequence("next")
+          return nil
+        end)
+        promise:resolve()
+
+        -- holds lua open until all promises are settled
+        Promise.wait():await()
+        sequence("done")
+      end
+      -- run the script
+      run()
+    `;
+
+    await lua.doString(fixture);
+
+    expect(sequence.mock.calls.flat(), "Promise order preserved").toStrictEqual(
+      ["start", "next", "done"]
+    );
+  });
 });

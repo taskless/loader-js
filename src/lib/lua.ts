@@ -79,13 +79,13 @@ export const runLifecycle = async (
       ${scripts.map(([_, contents]) => contents).join("\n")}
 
       promise = Promise.new()
-      promise:resolve()
       ${scripts.map(
         ([name], index) => `${index === 0 ? "promise" : ""}:next(${name})`
       )}:next(function()
         -- complete
         return nil
       end)
+      promise:resolve()
 
       -- holds lua open until all promises are settled
       Promise.wait():await()
@@ -98,12 +98,11 @@ export const runLifecycle = async (
     -- ${debugId} END
   `;
 
-  logger.debug(`-- ${debugId} lua contents:\n${localScript}`);
-
   try {
     await lua.doString(localScript);
   } catch (error) {
     logger.error(`${debugId} Error running script: ${error as string}`);
+    logger.debug(`-- DEBUG ${debugId} lua contents:\n${localScript}`);
   }
 
   // ensure globals are cleared
