@@ -16,6 +16,7 @@ export default defineConfig({
       include: Object.values(ENTRY_POINTS),
     }),
   ],
+  assetsInclude: ["**/*.lua"],
   build: {
     outDir: "dist",
     sourcemap: true,
