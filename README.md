@@ -24,11 +24,11 @@ TASKLESS_API_KEY="your api key" node --import="@taskless/loader" start.js
 
 ## Autoloading Options
 
-| env                   | values                           | description                                         |
-| :-------------------- | :------------------------------- | :-------------------------------------------------- |
-| `TASKLESS_API_KEY`    | `string`                         | Your Taskless API key                               |
-| `TASKLESS_LOCAL_MODE` | `1`                              | Disables network requests and enables local logging |
-| `TASKLESS_LOG_LEVEL`  | `debug`, `info`, `warn`, `error` | Sets the log level                                  |
+| env                  | values                           | description                                     |
+| :------------------- | :------------------------------- | :---------------------------------------------- |
+| `TASKLESS_API_KEY`   | `string`                         | Your Taskless API key                           |
+| `TASKLESS_LOG_LEVEL` | `debug`, `info`, `warn`, `error` | Sets the log level                              |
+| `TASKLESS_OPTIONS`   | `key1=value1;key2=value2...`     | Set key/value pairs for the Taskless Autoloader |
 
 ## Programatic API
 

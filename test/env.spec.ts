@@ -25,7 +25,6 @@ describe("Taskless environment and importing", () => {
     const { stdout, stderr } = await execa({
       preferLocal: true,
       env: {
-        TASKLESS_LOGGING: "1",
         TASKLESS_LOG_LEVEL: "debug",
       },
       cwd: resolve(dirname(fileURLToPath(import.meta.url)), "../"),
@@ -34,11 +33,12 @@ describe("Taskless environment and importing", () => {
     expect(stdout).toMatch(/taskless autoloader ran successfully/i);
   });
 
-  test("Will not start unless an api key or local mode is enabled", async () => {
+  test("No network and no logging is an error", async () => {
     const { stdout, stderr } = await execa({
       preferLocal: true,
       env: {
         TASKLESS_LOG_LEVEL: "debug",
+        TASKLESS_OPTIONS: "network=false;logging=false",
       },
       cwd: resolve(dirname(fileURLToPath(import.meta.url)), "../"),
     })`tsx --import=./src/index.ts test/fixtures/end.ts`;
@@ -48,7 +48,7 @@ describe("Taskless environment and importing", () => {
     );
     expect(
       stderr,
-      "Prevcents load with no API key and no logging enabled"
+      "Prevents load with no API key and no logging enabled"
     ).toMatch(/InitializationError:/);
   });
 });

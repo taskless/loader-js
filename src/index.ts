@@ -13,20 +13,47 @@ import { isLogLevel } from "./types.js";
 /** The Taskless API Key */
 const TASKLESS_API_KEY = process.env.TASKLESS_API_KEY;
 
-/** Local Mode Enabled - ndjson local logging */
-const TASKLESS_LOGGING = process.env.TASKLESS_LOGGING;
+/** Taskless Options via single env */
+const importedOptions = (process.env.TASKLESS_OPTIONS ?? "").split(";");
+const options: Record<string, unknown> = {};
+
+/** Casts strings to Taskless-compatible options */
+const castString = (value: string) => {
+  switch (value) {
+    case "true": {
+      return true;
+    }
+
+    case "false": {
+      return false;
+    }
+
+    default: {
+      // convert numbers on regex match
+      if (/^\d+$/.test(value)) {
+        return Number.parseInt(value, 10);
+      }
+
+      return value;
+    }
+  }
+};
+
+for (const option of importedOptions) {
+  const [key, value] = option.split("=");
+  options[key] = castString(value);
+}
 
 /** Debug Enabled */
 const TASKLESS_LOG_LEVEL = isLogLevel(process.env.TASKLESS_LOG_LEVEL)
   ? process.env.TASKLESS_LOG_LEVEL
   : "warn";
+options.logLevel ??= TASKLESS_LOG_LEVEL;
 
 // taskless will by default auto-initialize, fetching remote
 // packs and patching the runtime
 taskless(TASKLESS_API_KEY, {
-  endpoint: TASKLESS_HOST,
-  logging: TASKLESS_LOGGING === "1",
-  logLevel: TASKLESS_LOG_LEVEL,
+  ...options,
 }).catch((error) => {
   console.error(error);
 });

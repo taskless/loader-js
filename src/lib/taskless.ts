@@ -129,7 +129,7 @@ export const taskless = async (
 
   /** Flush all valid pending telemetry */
   function flush() {
-    const entries = pending.slice();
+    const entries = pending.splice(0, pending.length);
 
     // Compress the network payload into normalized form
     const networkPayload: NetworkPayload = {};
