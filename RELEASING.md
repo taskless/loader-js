@@ -4,7 +4,4 @@ This repository releases code using [release-it](https://github.com/release-it/r
 
 ## Common Commands
 
-- Begin a new for the next version `next` with `pnpm rel <major|minor|patch> --preRelease=next`
-- Continue an existing `major`, `minor`, or `patch` pre release with `pnpm rel`
-- Change the pre release tag with a new `--preRelease=` flag
-- Ultimately release with `pnpm rel <major|minor|patch>`
+- Publish: `pnpm changeset publish`
