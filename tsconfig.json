@@ -32,7 +32,7 @@
     "sourceMap": true,
     "strictBindCallApply": false,
 
-    "types": ["node"],
+    "types": ["node", "vite/client"],
     "allowJs": true, // for importing configs in tests
     "lib": ["ES2021"],
 

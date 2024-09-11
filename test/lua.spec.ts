@@ -1,6 +1,6 @@
 import { createLogger } from "@~/lib/logger.js";
 import { runLifecycle } from "@~/lib/lua.js";
-import { usePromise } from "@~/lua/promise.lua.js";
+import { usePromise } from "@~/lua/promise.js";
 import { dedent } from "ts-dedent";
 import { test as vitest, describe, vi } from "vitest";
 import { type LuaEngine, LuaFactory } from "wasmoon";

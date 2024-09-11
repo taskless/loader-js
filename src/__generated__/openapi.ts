@@ -48,7 +48,7 @@ export default {
                   "description": "A valid Taskless cloud configuration",
                   "type": "object",
                   "properties": {
-                    "__v": {
+                    "schema": {
                       "description": "The config schema version used",
                       "type": "number",
                       "enum": [
@@ -63,7 +63,7 @@ export default {
                       "items": {
                         "type": "object",
                         "properties": {
-                          "__v": {
+                          "schema": {
                             "description": "The pack schema version used",
                             "type": "number",
                             "enum": [
@@ -144,7 +144,7 @@ export default {
                           }
                         },
                         "required": [
-                          "__v",
+                          "schema",
                           "name",
                           "version",
                           "rules"
@@ -153,35 +153,9 @@ export default {
                     }
                   },
                   "required": [
-                    "__v",
+                    "schema",
                     "organizationId",
                     "packs"
-                  ]
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "description": "Unauthorized",
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "number",
-                      "enum": [
-                        401
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message"
                   ]
                 }
               }
@@ -290,32 +264,6 @@ export default {
                   },
                   "required": [
                     "received"
-                  ]
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "description": "Unauthorized",
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "number",
-                      "enum": [
-                        401
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message"
                   ]
                 }
               }

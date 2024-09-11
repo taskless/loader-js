@@ -9,7 +9,7 @@ import {
 import { captureFunctions } from "@~/lua/capture.bridge.js";
 import { contextFunctions } from "@~/lua/context.bridge.js";
 import { logFunctions } from "@~/lua/log.bridge.js";
-import { usePromise } from "@~/lua/promise.lua.js";
+import { usePromise } from "@~/lua/promise.js";
 import { requestFunctions } from "@~/lua/request.bridge.js";
 import { responseFunctions } from "@~/lua/response.bridge.js";
 import { stringFunctions } from "@~/lua/string.bridge.js";
@@ -50,7 +50,7 @@ const isBypassed = (request: Request) => {
 const createThrowable =
   <T extends Error>(error: T): ((...args: any[]) => any) =>
   () => {
-    // eslint-disable-next-line @typescript-eslint/no-throw-literal
+    // eslint-disable-next-line @typescript-eslint/only-throw-error
     throw error;
   };
 
@@ -386,9 +386,10 @@ export const taskless = async (
       const fetchResponse = await fetch(finalizedRequest);
 
       // add to our locals for the response
-      const [responseLibrary] = await Promise.all([
-        responseFunctions({ logger }, { response: fetchResponse }),
-      ]);
+      const responseLibrary = await responseFunctions(
+        { logger },
+        { response: fetchResponse }
+      );
 
       const responseLocals = {
         ...requestLocals,

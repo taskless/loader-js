@@ -68,7 +68,7 @@
     "vite-plugin-externalize-deps": "^0.8.0",
     "vite-tsconfig-paths": "^5.0.1",
     "vitest": "^2.0.5",
-    "xo": "^0.58.0"
+    "xo": "^0.59.3"
   },
   "publishConfig": {
     "access": "public"

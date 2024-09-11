@@ -1,8 +1,8 @@
-import { readFile } from "node:fs/promises";
 import { nextTick } from "node:process";
 import { dedent } from "ts-dedent";
 import { v4 } from "uuid";
 import { type LuaEngine } from "wasmoon";
+import luaPromise from "./promise.lua?raw";
 
 type UnknownFunction = (...args: unknown[]) => unknown;
 
@@ -25,11 +25,6 @@ export const usePromise = async (lua: LuaEngine) => {
   if (installed) {
     return `local Promise = ${name}`;
   }
-
-  const luaPromise = await readFile(
-    new URL("promise.lua", import.meta.url),
-    "utf8"
-  );
 
   lua.global.set(`${ns}_installed`, true);
 
