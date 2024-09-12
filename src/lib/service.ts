@@ -42,8 +42,9 @@ export const getConfig = async (
   const data = await response.json();
 
   logger.debug(
-    `Retrieved configuration from Taskless (orgId: ${data.organizationId}, schema: ${data.__v})`
+    `Retrieved configuration from Taskless (orgId: ${data.organizationId}, schema: ${data.schema})`
   );
+
   return data;
 };
 

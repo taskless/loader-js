@@ -63,8 +63,8 @@ export type InitOptions = {
 };
 
 export type TasklessAPI = {
+  logger: Logger;
   add(pack: string | Pack): void;
-  logger(): Logger;
   flush(): void;
   load(): Promise<{
     network: boolean;

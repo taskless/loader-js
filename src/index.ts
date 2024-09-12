@@ -1,8 +1,6 @@
-/* eslint-disable unicorn/prefer-top-level-await */
 /* eslint-disable n/no-process-env */
 import process from "node:process";
-import { TASKLESS_HOST } from "./constants.js";
-import { autoload as taskless } from "./lib/taskless.js";
+import { autoload } from "./lib/taskless.js";
 import { isLogLevel } from "./types.js";
 
 /**
@@ -52,10 +50,8 @@ options.logLevel ??= TASKLESS_LOG_LEVEL;
 
 // taskless will by default auto-initialize, fetching remote
 // packs and patching the runtime
-taskless(TASKLESS_API_KEY, {
+autoload(TASKLESS_API_KEY, {
   ...options,
-}).catch((error) => {
-  console.error(error);
 });
 
 // eslint-disable-next-line @typescript-eslint/no-useless-empty-export
