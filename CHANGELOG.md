@@ -1,5 +1,12 @@
 # @taskless/loader
 
+## 0.0.13
+
+### Patch Changes
+
+- b7233db: Makes the autoloader workflow fully synchronous - For older node instances, the mock / shimming process needs to be synchronous as part of the loader code. The blocking point was moved to the point of first request. This showed up mostly when using the `--loader` syntax. `--import` was unaffected.
+- a2ce1d1: Improves runtime compatibility - The previous vite build imported lua scripts via `new URL("data:...")` which can cause issues on some versions of node. This changes to a safer `import from...` syntax from `vite`
+
 ## 0.0.12
 
 ### Patch Changes
