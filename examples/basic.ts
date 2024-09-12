@@ -14,6 +14,8 @@ console.log(
 );
 
 console.log("Making a fetch to example.com (200)");
-await fetch("https://example.com");
+const resp = await fetch("https://example.com");
+
+console.log("Example: Got", resp.status);
 
 export {};
