@@ -10,7 +10,7 @@ export const bypass = {
 
 /** An empty config in the event of a request error */
 export const emptyConfig: Config = {
-  __v: 1,
+  schema: 1,
   organizationId: "",
   packs: [],
 };
