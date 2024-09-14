@@ -1,40 +1,51 @@
-import {
-  type CaptureCallback,
-  type Sends,
-  type LuaBridgeBuilder,
-} from "@~/types.js";
+import { type CaptureCallback, type LuaBridgeBuilder } from "@~/types.js";
 
 /**
  * Creates functions for capturing telemetry events
  */
 export const captureFunctions: LuaBridgeBuilder<{
   requestId: string;
-  sends: Sends;
   capture: CaptureCallback;
-}> = ({ logger }, options) => {
-  if (!options?.capture || !options?.requestId || !options?.sends) {
+}> = ({ logger, rules }, options) => {
+  if (!options?.capture || !options?.requestId) {
     throw new Error(
       "Capture builder requires the capture callback, send data info, and the request id to generate successfully"
     );
   }
 
-  const { sends, requestId, capture } = options;
+  const { requestId, capture } = options;
 
   return {
     functions: {
       /** Capture a telemetry event for sending to either the console or taskless.io service */
-      capture(key: string, value: string | number) {
-        const type = sends?.[key]?.type;
-        if (type) {
+      capture(ruleId: string, key: string, value: string | number) {
+        // check permissions for allowed capture
+        const [ns, index] = ruleId.split("_");
+        const indexNumber = Number.parseInt(index, 10);
+
+        if (Number.isNaN(indexNumber)) {
+          logger.error(`Invalid rule id ${ruleId}`);
+          return;
+        }
+
+        const rule = rules[ns]?.[indexNumber];
+
+        if (!rule) {
+          logger.error(`Rule ${ruleId} does not exist`);
+          return;
+        }
+
+        const allowList = rule.__.permissions?.captures ?? [];
+
+        if (allowList.includes(key)) {
           capture({
             requestId,
             dimension: key,
             value: `${value}`,
-            type,
           });
         } else {
           logger.error(
-            `[${requestId}] Unable to capture ${key}, no type for ${type as string} is available`
+            `Rule for ${rule.__.packName} does not have permission to capture ${key}`
           );
         }
       },

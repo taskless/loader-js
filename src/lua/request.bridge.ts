@@ -32,27 +32,27 @@ export const requestFunctions: LuaBridgeBuilder<
       },
     },
     functions: {
-      getURL() {
+      getURL(ruleId: string) {
         return current.url;
       },
-      setURL(url: string) {
+      setURL(ruleId: string, url: string) {
         checkLock();
         current = new Request(url, current);
       },
-      getParameter(name: string) {
+      getParameter(ruleId: string, name: string) {
         const url = new URL(current.url);
         return url.searchParams.get(name);
       },
-      setParameter(name: string, value: string) {
+      setParameter(ruleId: string, name: string, value: string) {
         checkLock();
         const url = new URL(current.url);
         url.searchParams.set(name, value);
         current = new Request(url.toString(), current);
       },
-      getHeader(name: string) {
+      getHeader(ruleId: string, name: string) {
         return current.headers.get(name);
       },
-      setHeader(name: string, value: string) {
+      setHeader(ruleId: string, name: string, value: string) {
         checkLock();
         const headers = new Headers(current.headers);
         headers.set(name, value);
@@ -62,10 +62,10 @@ export const requestFunctions: LuaBridgeBuilder<
           headers,
         });
       },
-      async getBody() {
+      async getBody(ruleId: string) {
         return current.clone().text();
       },
-      setBody(data: string) {
+      setBody(ruleId: string, data: string) {
         checkLock();
         // keep everything synchronous in lua, but update
         // the request object as well so it stays current

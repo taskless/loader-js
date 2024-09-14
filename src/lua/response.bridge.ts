@@ -30,10 +30,10 @@ export const responseFunctions: LuaBridgeBuilder<
       },
     },
     functions: {
-      async getBody() {
+      async getBody(ruleId: string) {
         return current.clone().text();
       },
-      setBody(data: string) {
+      setBody(ruleId: string, data: string) {
         checkLock();
         // keep everything synchronous in lua, but update
         // the request object as well so it stays current
@@ -41,10 +41,10 @@ export const responseFunctions: LuaBridgeBuilder<
           ...current,
         });
       },
-      getHeader(name: string) {
+      getHeader(ruleId: string, name: string) {
         return current.headers.get(name);
       },
-      setHeader(name: string, value: string) {
+      setHeader(ruleId: string, name: string, value: string) {
         checkLock();
         const headers = new Headers(current.headers);
         headers.set(name, value);
@@ -53,10 +53,10 @@ export const responseFunctions: LuaBridgeBuilder<
           headers,
         });
       },
-      getStatus() {
+      getStatus(ruleId: string) {
         return current.status;
       },
-      setStatus(status: number) {
+      setStatus(ruleId: string, status: number) {
         checkLock();
         current = new Response(current.body, {
           ...current,

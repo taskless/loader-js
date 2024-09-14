@@ -5,7 +5,7 @@ import { type LuaBridgeBuilder } from "@~/types.js";
 export const timeFunctions: LuaBridgeBuilder = () => {
   return {
     functions: {
-      now() {
+      now(ruleId: string) {
         const hrt = hrtime();
         // eslint-disable-next-line unicorn/numeric-separators-style
         return Math.ceil(hrt[0] * 1000 + hrt[1] / 1000000);

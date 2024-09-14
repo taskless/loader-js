@@ -82,31 +82,31 @@ export default {
                             "description": "The pack description",
                             "type": "string"
                           },
-                          "sends": {
-                            "description": "Descriptive information about the events this pack sends. Helps Taskless understand how to retrieve and display the data this pack creates.",
+                          "permissions": {
+                            "description": "The permissions requested for this pack",
                             "type": "object",
-                            "additionalProperties": {
-                              "type": "object",
-                              "properties": {
-                                "type": {
-                                  "anyOf": [
-                                    {
-                                      "const": "string",
-                                      "type": "string"
-                                    },
-                                    {
-                                      "const": "number",
-                                      "type": "string"
-                                    }
-                                  ]
-                                },
-                                "description": {
+                            "properties": {
+                              "calls": {
+                                "description": "The URLs this pack is allowed to call outside of the primary request, in regex-friendly format",
+                                "type": "array",
+                                "items": {
                                   "type": "string"
                                 }
                               },
-                              "required": [
-                                "type"
-                              ]
+                              "captures": {
+                                "description": "The dimension keys this pack captures",
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "environment": {
+                                "description": "The environment variables this pack is allowed to access from the host system",
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
                             }
                           },
                           "rules": {
@@ -141,13 +141,77 @@ export default {
                                 "matches"
                               ]
                             }
+                          },
+                          "modules": {
+                            "description": "A set of pre-configured graphs or display modules available in this pack",
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "description": "A name for the display module, unique to the pack",
+                                  "type": "string"
+                                },
+                                "title": {
+                                  "description": "The title",
+                                  "type": "string"
+                                },
+                                "query": {
+                                  "description": "Describes the query that retrieves data for this module",
+                                  "type": "object",
+                                  "properties": {
+                                    "count": {
+                                      "type": "string"
+                                    },
+                                    "group": {
+                                      "type": "string"
+                                    },
+                                    "where": {
+                                      "type": "object",
+                                      "additionalProperties": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "number"
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  }
+                                },
+                                "display": {
+                                  "description": "The default display mode for this module",
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "graph"
+                                      ]
+                                    },
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "table"
+                                      ]
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "name",
+                                "title",
+                                "query",
+                                "display"
+                              ]
+                            }
                           }
                         },
                         "required": [
                           "schema",
                           "name",
-                          "version",
-                          "rules"
+                          "version"
                         ]
                       }
                     }

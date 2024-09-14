@@ -126,24 +126,19 @@ export const taskless = (
       if (useNetwork) {
         networkPayload[entry.requestId] ||= [];
 
-        switch (entry.type) {
-          case "number": {
-            networkPayload[entry.requestId].push({
-              seq: entry.sequenceId,
-              dim: entry.dimension,
-              num: entry.value,
-            });
-            break;
-          }
-
-          case "string": {
-            networkPayload[entry.requestId].push({
-              seq: entry.sequenceId,
-              dim: entry.dimension,
-              str: entry.value,
-            });
-            break;
-          }
+        // save as number when possible for performance
+        if (/^\d+$/.test(entry.value)) {
+          networkPayload[entry.requestId].push({
+            seq: entry.sequenceId,
+            dim: entry.dimension,
+            num: entry.value,
+          });
+        } else {
+          networkPayload[entry.requestId].push({
+            seq: entry.sequenceId,
+            dim: entry.dimension,
+            str: entry.value,
+          });
         }
       }
 
@@ -302,17 +297,29 @@ export const taskless = (
 
 /** Autoloading interface for Taskless, hides manual pack loading and automatically initializes */
 export const autoload = (secret?: string, options?: InitOptions) => {
+  const handleError = (error: unknown) => {
+    if (error instanceof Error) {
+      t.logger.error(error.message);
+      // eslint-disable-next-line unicorn/no-process-exit
+      process.exit(1);
+    } else {
+      t.logger.error(error as string);
+      // eslint-disable-next-line unicorn/no-process-exit
+      process.exit(1);
+    }
+  };
+
   const t = taskless(secret, options);
   t.logger.debug("Initialized Taskless");
-  t.load()
-    .then(() => {
-      t.logger.debug("Taskless Autoloader ran successfully");
-    })
-    .catch((error: unknown) => {
-      if (error instanceof Error) {
-        t.logger.error(error.message);
-      } else {
-        t.logger.error(error as string);
-      }
-    });
+  try {
+    t.load()
+      .then(() => {
+        t.logger.debug("Taskless Autoloader ran successfully");
+      })
+      .catch((error: unknown) => {
+        handleError(error);
+      });
+  } catch (error) {
+    handleError(error);
+  }
 };

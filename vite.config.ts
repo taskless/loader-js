@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import { defineConfig, Plugin } from "vite";
 import { externalizeDeps } from "vite-plugin-externalize-deps";
 import tsconfigPaths from "vite-tsconfig-paths";
 import dts from "vite-plugin-dts";
@@ -16,9 +16,9 @@ export default defineConfig({
       include: Object.values(ENTRY_POINTS),
     }),
   ],
-  assetsInclude: ["**/*.lua"],
   build: {
     outDir: "dist",
+    emptyOutDir: true,
     sourcemap: true,
     lib: {
       entry: ENTRY_POINTS.index, // overwritten by rollup options

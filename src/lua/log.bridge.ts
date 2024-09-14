@@ -5,14 +5,17 @@ import { type LuaBridgeBuilder } from "@~/types.js";
  * the host system
  */
 export const logFunctions: LuaBridgeBuilder = ({ logger }) => {
-  function log(message: string): void;
+  function log(ruleId: string, message: string): void;
   function log(
+    ruleId: string,
     level: "debug" | "info" | "warn" | "error",
     message?: string
   ): void;
   function log(...args: any[]): void {
-    const [level, message] =
-      args.length === 1 ? ["info", `${args[0]}`] : [`${args[0]}`, `${args[1]}`];
+    const [ruleId, level, message] =
+      args.length === 2
+        ? [`${args[0]}`, "info", `${args[1]}`]
+        : [`${args[0]}`, `${args[1]}`, `${args[2]}`];
     if (
       level in logger &&
       typeof logger[level as keyof typeof logger] === "function"

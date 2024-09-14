@@ -82,11 +82,11 @@ export type Config = OASOutput<
 /** Describes a pack in the Config */
 export type Pack = Config["packs"][number];
 /** Describes a rule in the Pack */
-export type Rule = Pack["rules"][number];
+export type Rule = NonNullable<Pack["rules"]>[number];
 /** Creates a pick-list of valid hook types */
 export type HookName = keyof NonNullable<Rule["hooks"]>;
 /** Pack sends collection */
-export type Sends = Pack["sends"];
+export type Permissions = Pack["permissions"];
 
 /** Describes a denormalized rule, supplemented with information from its parent object(s) */
 export type DenormalizedRule = Rule & {
@@ -95,7 +95,7 @@ export type DenormalizedRule = Rule & {
     packName: string;
     packVersion: string;
     configOrganizationId: string;
-    sendData: Sends;
+    permissions: Permissions;
   };
 };
 
@@ -122,7 +122,6 @@ export type CaptureItem = {
   sequenceId: string;
   dimension: string;
   value: string;
-  type: NonNullable<Sends>[string]["type"];
 };
 
 /** The capture callback does not include a sequence id by default. It is added later */
@@ -146,10 +145,14 @@ export type LuaBridgeBuilder<
   T = undefined,
   TInternal = Record<string, never>,
 > = T extends undefined
-  ? (options: { logger: Logger }) => MaybePromise<LuaBridge<TInternal>>
+  ? (options: {
+      logger: Logger;
+      rules: Record<HookName, DenormalizedRule[]>;
+    }) => MaybePromise<LuaBridge<TInternal>>
   : (
       options: {
         logger: Logger;
+        rules: Record<string, DenormalizedRule[]>;
       },
       builderOptions: T
     ) => MaybePromise<LuaBridge<TInternal>>;

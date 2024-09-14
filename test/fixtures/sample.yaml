@@ -3,16 +3,10 @@ pack: 1
 name: "@taskless/test"
 version: "1.0.0"
 description: Test pack with basic functionality expressed
-sends:
-  start:
-    type: "number"
-    description: "The start time of the request"
-  durationMs:
-    type: "number"
-    description: "The duration of the request in milliseconds"
-  status:
-    type: "number"
-    description: "The status code of the request"
+permissions:
+  captures:
+    - "durationMs"
+    - "status"
 rules:
   - matches: "https://.+"
     hooks:

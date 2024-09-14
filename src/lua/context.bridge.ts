@@ -9,10 +9,10 @@ export const contextFunctions: LuaBridgeBuilder = () => {
 
   return {
     functions: {
-      get(key: string) {
+      get(ruleId: string, key: string) {
         return current[key];
       },
-      set(key: string, value: any) {
+      set(ruleId: string, key: string, value: any) {
         current[key] = value;
       },
     },

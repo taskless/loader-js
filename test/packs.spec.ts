@@ -27,7 +27,7 @@ describe("Loading packs", () => {
         configInterceptor();
 
         const cfg: Config = {
-          __v: 1,
+          schema: 1,
           organizationId: "test",
           packs: [],
         };
@@ -55,7 +55,7 @@ describe("Loading packs", () => {
       }
     });
 
-    const t = await taskless("test", {
+    const t = taskless("test", {
       // logLevel: "debug",
       logging: true,
       log: {

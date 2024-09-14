@@ -30,24 +30,38 @@ describe("Lua environment capabilities", (t) => {
     const fixture = {
       globalSync: vi
         .fn()
-        .mockImplementation((testValue) => `global sync (${testValue})`),
+        .mockImplementation(
+          (block, testValue) => `global sync (${block} ${testValue})`
+        ),
       globalAsync: vi
         .fn()
-        .mockImplementation(async (testValue) => `global async (${testValue})`),
+        .mockImplementation(
+          async (block, testValue) => `global async (${block} ${testValue})`
+        ),
       namespaced: {
         nsSync: vi
           .fn()
-          .mockImplementation((testValue) => `ns sync (${testValue})`),
+          .mockImplementation(
+            (block, testValue) => `ns sync (${block} ${testValue})`
+          ),
         nsSyncAlt: vi
           .fn()
-          .mockImplementation((testValue) => `ns sync (${testValue})`),
+          .mockImplementation(
+            (block, testValue) => `ns sync (${block} ${testValue})`
+          ),
         nsAsync: vi
           .fn()
-          .mockImplementation(async (testValue) => `ns async (${testValue})`),
+          .mockImplementation(
+            async (block, testValue) => `ns async (${block} ${testValue})`
+          ),
       },
     };
 
-    const logShim = { info: vi.fn(), debug: vi.fn() };
+    const logShim = {
+      info: vi.fn(),
+      debug: vi.fn(),
+      error: vi.fn(),
+    };
     const logger = createLogger("debug", logShim);
 
     const script = dedent`
@@ -65,20 +79,20 @@ describe("Lua environment capabilities", (t) => {
     await runLifecycle(
       lua,
       {
+        id: "test",
         blocks: [script],
         set: fixture,
         headers: [await usePromise(lua)],
+        async: ["globalAsync", "namespaced.nsAsync"],
       },
       { logger, debugId: "test" }
     );
 
-    // console.log(logShim.debug.mock.calls[0][0]);
-
-    expect(fixture.globalSync).toBeCalledWith("gs1");
-    expect(fixture.globalAsync).toBeCalledWith("gsa1");
-    expect(fixture.namespaced.nsSync).toBeCalledWith("ns1");
-    expect(fixture.namespaced.nsSyncAlt).toBeCalledWith("ns2");
-    expect(fixture.namespaced.nsAsync).toBeCalledWith("nsa1");
+    expect(fixture.globalSync).toBeCalledWith("test_0", "gs1");
+    expect(fixture.globalAsync).toBeCalledWith("test_0", "gsa1");
+    expect(fixture.namespaced.nsSync).toBeCalledWith("test_0", "ns1");
+    expect(fixture.namespaced.nsSyncAlt).toBeCalledWith("test_0", "ns2");
+    expect(fixture.namespaced.nsAsync).toBeCalledWith("test_0", "nsa1");
 
     expect(true).toBe(true);
   });

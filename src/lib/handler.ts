@@ -7,11 +7,11 @@ import { responseFunctions } from "@~/lua/response.bridge.js";
 import { stringFunctions } from "@~/lua/string.bridge.js";
 import { timeFunctions } from "@~/lua/time.bridge.js";
 import {
+  type Permissions,
   type CaptureCallback,
   type DenormalizedRule,
   type HookName,
   type Logger,
-  type Sends,
 } from "@~/types.js";
 import { http, type StrictResponse } from "msw";
 import { type LuaEngine } from "wasmoon";
@@ -51,17 +51,18 @@ export const createHandler = ({
     const requestId = id();
     logger.debug(`[${requestId}] started`);
 
-    // build our middleware by executing every hook for a matching rule
     const hooks: Record<HookName, string[]> = {
       pre: [],
       post: [],
     };
-
-    let sendData: Sends = {};
+    const activeRules: Record<HookName, DenormalizedRule[]> = {
+      pre: [],
+      post: [],
+    };
 
     const rules = await getRules();
 
-    // load all matching hooks
+    // load all matching hooks and record permissions at each hook's step
     for (const rule of rules) {
       if (!rule.__.matches.test(info.request.url)) {
         continue;
@@ -69,41 +70,38 @@ export const createHandler = ({
 
       // pre lifecycle is in forward order
       if (rule.hooks?.pre) {
-        sendData = {
-          ...sendData,
-          ...rule.__.sendData,
-        };
         hooks.pre.push(rule.hooks.pre.trim());
+        activeRules.pre.push(rule);
       }
 
       // post lifecycle is in reverse order
       if (rule.hooks?.post) {
-        sendData = {
-          ...sendData,
-          ...rule.__.sendData,
-        };
         hooks.post.unshift(rule.hooks.post.trim());
+        activeRules.post.unshift(rule);
       }
     }
 
     const [logLibrary, stringLibrary, timeLibrary, contextLibrary] =
       await Promise.all([
-        logFunctions({ logger }),
-        stringFunctions({ logger }),
-        timeFunctions({ logger }),
-        contextFunctions({ logger }),
+        logFunctions({ logger, rules: activeRules }),
+        stringFunctions({ logger, rules: activeRules }),
+        timeFunctions({ logger, rules: activeRules }),
+        contextFunctions({ logger, rules: activeRules }),
       ]);
 
     const [requestLibrary, tasklessLibrary] = await Promise.all([
-      requestFunctions({ logger }, { request: info.request }),
+      requestFunctions(
+        { logger, rules: activeRules },
+        { request: info.request }
+      ),
       captureFunctions(
         {
           logger,
+          rules: activeRules,
         },
         {
           capture,
           requestId,
-          sends: sendData,
         }
       ),
     ]);
@@ -113,7 +111,7 @@ export const createHandler = ({
       ...logLibrary.functions,
       ...stringLibrary.functions,
       ...timeLibrary.functions,
-      // in namespace
+      // namespaced
       context: contextLibrary.functions,
       request: requestLibrary.functions,
       taskless: tasklessLibrary.functions,
@@ -123,6 +121,7 @@ export const createHandler = ({
     await runLifecycle(
       lua,
       {
+        id: "pre",
         set: requestLocals,
         blocks: hooks.pre,
         async: ["request.getBody"],
@@ -137,13 +136,11 @@ export const createHandler = ({
       requestId,
       dimension: "url",
       value: finalizedRequest.url,
-      type: "string",
     });
     capture({
       requestId,
       dimension: "domain",
       value: new URL(finalizedRequest.url).hostname,
-      type: "string",
     });
 
     // Fetch
@@ -152,7 +149,7 @@ export const createHandler = ({
 
     // add to our locals for the response
     const responseLibrary = await responseFunctions(
-      { logger },
+      { logger, rules: activeRules },
       { response: fetchResponse }
     );
 
@@ -165,6 +162,7 @@ export const createHandler = ({
     await runLifecycle(
       lua,
       {
+        id: "post",
         set: responseLocals,
         blocks: hooks.post,
         async: ["request.getBody", "response.getBody"],

@@ -1,10 +1,20 @@
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { execa } from "execa";
-import { vi, expect, test, afterEach, describe } from "vitest";
+import { execa, execaSync } from "execa";
+import { vi, expect, test, afterEach, describe, beforeAll } from "vitest";
 import { taskless } from "../src/core.js";
 
-describe("Taskless environment and importing", () => {
+describe("Taskless environment and importing (requires build)", () => {
+  beforeAll(async () => {
+    const { stdout, stderr } = await execa({
+      preferLocal: true,
+      env: {
+        TASKLESS_LOG_LEVEL: "debug",
+      },
+      cwd: resolve(dirname(fileURLToPath(import.meta.url)), "../"),
+    })`pnpm build`;
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllEnvs();
@@ -28,9 +38,9 @@ describe("Taskless environment and importing", () => {
         TASKLESS_LOG_LEVEL: "debug",
       },
       cwd: resolve(dirname(fileURLToPath(import.meta.url)), "../"),
-    })`tsx --import=./src/index.ts test/fixtures/end.ts`;
+    })`tsx --import=./dist/index.js test/fixtures/end.ts`;
 
-    expect(stdout).toMatch(/taskless autoloader ran successfully/i);
+    expect(stdout).toMatch(/initialized taskless/i);
   });
 
   test("No network and no logging is an error", async () => {
@@ -41,14 +51,15 @@ describe("Taskless environment and importing", () => {
         TASKLESS_OPTIONS: "network=false;logging=false",
       },
       cwd: resolve(dirname(fileURLToPath(import.meta.url)), "../"),
-    })`tsx --import=./src/index.ts test/fixtures/end.ts`;
+      reject: false,
+    })`tsx --import=./dist/index.js test/fixtures/end.ts`;
 
-    expect(stdout, "Loads successfully").not.toMatch(
-      /taskless autoloader ran successfully/i
+    expect(stdout, "Initializes synchronously").toMatch(
+      /initialized taskless/i
     );
     expect(
       stderr,
       "Prevents load with no API key and no logging enabled"
-    ).toMatch(/InitializationError:/);
+    ).toMatch(/network and logging are both disabled/i);
   });
 });

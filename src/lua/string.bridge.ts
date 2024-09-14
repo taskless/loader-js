@@ -5,16 +5,16 @@ import { base64ToString, stringToBase64 } from "uint8array-extras";
 export const stringFunctions: LuaBridgeBuilder = () => {
   return {
     functions: {
-      toJSON(data: string) {
+      toJSON(ruleId: string, data: string) {
         return JSON.stringify(data);
       },
-      fromJSON(data: string) {
+      fromJSON(ruleId: string, data: string) {
         return JSON.parse(data) as unknown;
       },
-      toBase64(data: string) {
+      toBase64(ruleId: string, data: string) {
         return stringToBase64(data);
       },
-      fromBase64(data: string) {
+      fromBase64(ruleId: string, data: string) {
         return base64ToString(data);
       },
     },

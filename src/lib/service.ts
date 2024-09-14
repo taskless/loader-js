@@ -57,7 +57,7 @@ export const loadRules = async (
   const flatRules: DenormalizedRule[] = [];
 
   for (const pack of resolvedPacks) {
-    for (const rule of pack.rules) {
+    for (const rule of pack.rules ?? []) {
       flatRules.push({
         ...rule,
         __: {
@@ -65,7 +65,7 @@ export const loadRules = async (
           packName: pack.name,
           packVersion: pack.version,
           configOrganizationId: resolvedConfig?.organizationId ?? "",
-          sendData: pack.sends,
+          permissions: pack.permissions,
         },
       });
     }

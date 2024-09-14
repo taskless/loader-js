@@ -9,6 +9,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const base = process.env.TASKLESS_HOST ?? `${TASKLESS_HOST}`;
 const oapi = new URL(`${base}/.well-known/openapi.json`);
 
+console.log(`Using OpenAPI at ${oapi.toString()}`);
+
 const file = await fetch(oapi.toString());
 const contents = (await file.json()) as unknown;
 const out = `
