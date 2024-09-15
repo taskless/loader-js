@@ -1,5 +1,12 @@
 # @taskless/loader
 
+## 0.0.14
+
+### Patch Changes
+
+- 4442e69: Improves sandbox security - The previous Lua sandbox did not support permissions on a per-hook basis. Packs now include a `permissions` field that declares what a pack is able to do. This strengthens the sandbox further, giving you the ability to quickly idenitfy what a pack is allowed to (or not allowed to) do. Internally, all bridhed lua functions are updated to include their caller as the first parameter, making it possible for the bridge to enforce the security model in-client.
+- 0be58b2: Adds a default configuration when network connections are disabled - Previously, the loader would load a "zero pack" configuration when the network connection was disabled. For just getting started with Taskless, this created a barrier to entry. Now, when no api key is specified a default configuration is loaded (see `/config/default.yaml`). The default confguration captures the duration and status for all requests `https://.+`, making it easy to see how Taskless creates a safe environment for tapping into every request.
+
 ## 0.0.13
 
 ### Patch Changes
