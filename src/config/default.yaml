@@ -1,0 +1,19 @@
+schema: 1
+organizationId: none
+packs:
+  - name: "@taskless/~"
+    version: "1.0.0"
+    description: Taskless offline pack, provides basic functionality
+    schema: 1
+    permissions:
+      captures:
+        - durationMs
+        - status
+    rules:
+      - matches: "https://.+"
+        hooks:
+          pre: |
+            context.set("start", now())
+          post: |
+            taskless.capture("durationMs", now() - context.get("start"))
+            taskless.capture("status", response.getStatus())

@@ -7,6 +7,8 @@ import {
   type Pack,
 } from "@~/types.js";
 import { type NormalizeOAS, type OASClient } from "fets";
+import yaml from "js-yaml";
+import defaultConfig from "../config/default.yaml?raw";
 import type openapi from "@~/__generated__/openapi.js";
 
 /** Extract all packs from the config, ensuring the config is resolved */
@@ -17,12 +19,16 @@ export const extractPacks = async (packs: Promise<Config>) => {
 
 /** Fetch the configuration from taskless using the provided API secret */
 export const getConfig = async (
-  secret: string,
+  secret: string | undefined,
   {
     logger,
     client,
   }: { logger: Logger; client: OASClient<NormalizeOAS<typeof openapi>> }
 ): Promise<Config> => {
+  if (!secret) {
+    return yaml.load(defaultConfig, { schema: yaml.FAILSAFE_SCHEMA }) as Config;
+  }
+
   const response = await client["/{version}/config"].get({
     headers: {
       authorization: `Bearer ${secret}`,

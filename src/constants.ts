@@ -11,7 +11,7 @@ export const bypass = {
 /** An empty config in the event of a request error */
 export const emptyConfig: Config = {
   schema: 1,
-  organizationId: "",
+  organizationId: "none",
   packs: [],
 };
 

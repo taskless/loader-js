@@ -172,10 +172,7 @@ export const taskless = (
 
   // a bunch of promises to not block on. Hold their awaited values instead
   const factory = new LuaFactory();
-  const promisedConfig =
-    secret && useNetwork
-      ? getConfig(secret, { logger, client })
-      : Promise.resolve(emptyConfig);
+  const promisedConfig = getConfig(secret, { logger, client });
   const promisedPacks = extractPacks(promisedConfig);
   const promisedEngine = factory.createEngine();
   let resolvedLua: LuaEngine | undefined;
