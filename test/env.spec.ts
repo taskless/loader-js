@@ -5,16 +5,6 @@ import { vi, expect, test, afterEach, describe, beforeAll } from "vitest";
 import { taskless } from "../src/core.js";
 
 describe("Taskless environment and importing (requires build)", () => {
-  beforeAll(async () => {
-    const { stdout, stderr } = await execa({
-      preferLocal: true,
-      env: {
-        TASKLESS_LOG_LEVEL: "debug",
-      },
-      cwd: resolve(dirname(fileURLToPath(import.meta.url)), "../"),
-    })`pnpm build`;
-  });
-
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllEnvs();
@@ -38,7 +28,9 @@ describe("Taskless environment and importing (requires build)", () => {
         TASKLESS_LOG_LEVEL: "debug",
       },
       cwd: resolve(dirname(fileURLToPath(import.meta.url)), "../"),
-    })`tsx --import=./dist/index.js test/fixtures/end.ts`;
+    })`node --import=./dist/index.js test/fixtures/end.js`;
+
+    console.log(stdout, stderr);
 
     expect(stdout).toMatch(/initialized taskless/i);
   });
@@ -52,7 +44,7 @@ describe("Taskless environment and importing (requires build)", () => {
       },
       cwd: resolve(dirname(fileURLToPath(import.meta.url)), "../"),
       reject: false,
-    })`tsx --import=./dist/index.js test/fixtures/end.ts`;
+    })`tsx --import=./dist/index.js test/fixtures/end.js`;
 
     expect(stdout, "Initializes synchronously").toMatch(
       /initialized taskless/i

@@ -1,8 +1,8 @@
-import process from "node:process";
+import process, { exit } from "node:process";
+import { Worker, MessageChannel } from "node:worker_threads";
 import {
   bypass,
   DEFAULT_FLUSH_INTERVAL,
-  emptyConfig,
   noop,
   TASKLESS_HOST,
 } from "@~/constants.js";
@@ -28,6 +28,21 @@ import { createLogger } from "./logger.js";
 import { extractPacks, getConfig, loadRules } from "./service.js";
 import type openapi from "../__generated__/openapi.js";
 
+// our on-demand worker code for a synchronous flush
+const workerCode = /* js */ `
+const {
+  parentPort, workerData: { notifyHandle, port2, options }
+} = require('worker_threads');
+
+(async () => {
+  const response = await fetch(options.url, options.requestInit);
+  const text = await response.text();
+  port2.postMessage({ text });
+  Atomics.store(notifyHandle, 0, 1);
+  Atomics.notify(notifyHandle, 0);
+})();
+`;
+
 // a throwable function
 const createThrowable =
   <T extends Error>(error: T): ((...args: any[]) => any) =>
@@ -40,6 +55,7 @@ const createThrowable =
 const createErrorAPI = <T extends Error>(error: T): TasklessAPI => ({
   add: createThrowable(error),
   flush: createThrowable(error),
+  flushSync: createThrowable(error),
   logger: createThrowable(error) as unknown as Logger,
   load: createThrowable(error),
 });
@@ -66,9 +82,13 @@ export const taskless = (
   const useLogging =
     options?.logging === undefined ? !useNetwork : Boolean(options.logging);
 
+  const activeEndpoint = (options?.endpoint ?? TASKLESS_HOST).replace(
+    /\/$/,
+    ""
+  );
   const logger = createLogger(options?.logLevel, options?.log);
   const client = createClient<NormalizeOAS<typeof openapi>>({
-    endpoint: (options?.endpoint ?? TASKLESS_HOST).replace(/\/$/, ""),
+    endpoint: activeEndpoint,
     globalParams: {
       headers: {
         authorization: `Bearer ${secret}`,
@@ -105,7 +125,7 @@ export const taskless = (
   function startDrain() {
     /** Inner function to flush and restart drain */
     function flushAndRestart() {
-      flush();
+      flush().catch(noop); // discard flush errors
       startDrain();
     }
 
@@ -116,58 +136,145 @@ export const taskless = (
     );
   }
 
-  /** Flush all valid pending telemetry */
-  function flush() {
-    const entries = pending.splice(0, pending.length);
+  function stopDrain() {
+    clearTimeout(timer);
+  }
 
-    // Compress the network payload into normalized form
+  /** Convert a set of entries to compressed network payload */
+  const entriesToNetworkJson = (entries: CaptureItem[]) => {
     const networkPayload: NetworkPayload = {};
     for (const entry of entries) {
-      if (useNetwork) {
-        networkPayload[entry.requestId] ||= [];
+      networkPayload[entry.requestId] ||= [];
 
-        // save as number when possible for performance
-        if (/^\d+$/.test(entry.value)) {
-          networkPayload[entry.requestId].push({
-            seq: entry.sequenceId,
-            dim: entry.dimension,
-            num: entry.value,
-          });
-        } else {
-          networkPayload[entry.requestId].push({
-            seq: entry.sequenceId,
-            dim: entry.dimension,
-            str: entry.value,
-          });
-        }
-      }
-
-      if (useLogging) {
-        logger.data(
-          JSON.stringify({
-            req: entry.requestId,
-            seq: entry.sequenceId,
-            dim: entry.dimension,
-            val: entry.value,
-          } satisfies ConsolePayload)
-        );
+      // save as number when possible for performance
+      if (/^\d+$/.test(entry.value)) {
+        networkPayload[entry.requestId].push({
+          seq: entry.sequenceId,
+          dim: entry.dimension,
+          num: entry.value,
+        });
+      } else {
+        networkPayload[entry.requestId].push({
+          seq: entry.sequenceId,
+          dim: entry.dimension,
+          str: entry.value,
+        });
       }
     }
 
-    if (useNetwork && entries.length > 0) {
+    return networkPayload;
+  };
+
+  /** Sends a set of entries to the logging function */
+  const logEntries = (entries: CaptureItem[]) => {
+    for (const entry of entries) {
+      logger.data(
+        JSON.stringify({
+          req: entry.requestId,
+          seq: entry.sequenceId,
+          dim: entry.dimension,
+          val: entry.value,
+        } satisfies ConsolePayload)
+      );
+    }
+  };
+
+  /** Flush all valid pending telemetry */
+  const flush = async () => {
+    logger.debug("Flushing telemetry data");
+    const entries = pending.splice(0, pending.length);
+    const networkPayload = useNetwork
+      ? entriesToNetworkJson(entries)
+      : undefined;
+
+    if (useLogging) {
+      logEntries(entries);
+    }
+
+    if (
+      useNetwork &&
+      networkPayload &&
+      Object.keys(networkPayload).length > 0
+    ) {
       logger.debug(
         `Flushing telemetry data to Taskless (batch size: ${Object.keys(networkPayload).length})`
       );
       logger.debug(JSON.stringify(networkPayload, null, 2));
-      client["/{version}/events"]
-        .post({
+      try {
+        await client["/{version}/events"].post({
           json: networkPayload,
           params: {
             version: "v1",
           },
-        })
-        .catch(noop);
+        });
+      } catch {}
     }
+  };
+
+  const flushSync = () => {
+    const entries = pending.splice(0, pending.length);
+    if (entries.length === 0) {
+      return;
+    }
+
+    logger.debug("Flushing telemetry data (sync)");
+
+    const networkPayload = useNetwork
+      ? entriesToNetworkJson(entries)
+      : undefined;
+
+    if (
+      useNetwork &&
+      networkPayload &&
+      Object.keys(networkPayload).length > 0
+    ) {
+      // worker setup
+      const notifyHandle = new Int32Array(new SharedArrayBuffer(4));
+      const { port1, port2 } = new MessageChannel();
+
+      const w = new Worker(workerCode, {
+        eval: true,
+        workerData: {
+          notifyHandle,
+          port2,
+          options: {
+            url: `${activeEndpoint}/v1/events`,
+            requestInit: {
+              method: "POST",
+              headers: {
+                authorization: `Bearer ${secret}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(networkPayload),
+            },
+          },
+        },
+        transferList: [port2],
+      });
+      // wait for notify
+      Atomics.wait(notifyHandle, 0, 0);
+      w.terminate();
+    }
+
+    if (useLogging) {
+      logEntries(entries);
+    }
+  };
+
+  const exitHandler = () => {
+    stopDrain();
+    flushSync();
+  };
+
+  for (const event of [
+    "exit",
+    "SIGINT",
+    "SIGTERM",
+    "SIGBREAK",
+    "beforeExit",
+    "uncaughtException",
+  ]) {
+    process.on(event, exitHandler);
   }
 
   // a bunch of promises to not block on. Hold their awaited values instead
@@ -273,10 +380,12 @@ export const taskless = (
     /** get the current logger */
     logger,
     /** Explicitly flush any pending logs. Useful before shutting down to ensure all events are captured */
-    flush() {
+    async flush() {
       clearTimeout(timer);
-      flush();
+      return flush();
     },
+    /** Flush all pending logs synchronously */
+    flushSync,
     /** Load all registered packs and initialize Taskless */
     async load() {
       await initialize();
@@ -297,11 +406,9 @@ export const autoload = (secret?: string, options?: InitOptions) => {
   const handleError = (error: unknown) => {
     if (error instanceof Error) {
       t.logger.error(error.message);
-      // eslint-disable-next-line unicorn/no-process-exit
       process.exit(1);
     } else {
       t.logger.error(error as string);
-      // eslint-disable-next-line unicorn/no-process-exit
       process.exit(1);
     }
   };

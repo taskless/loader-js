@@ -65,7 +65,8 @@ export type InitOptions = {
 export type TasklessAPI = {
   logger: Logger;
   add(pack: string | Pack): void;
-  flush(): void;
+  flush(): Promise<void>;
+  flushSync(): void;
   load(): Promise<{
     network: boolean;
     remotePacks: number;

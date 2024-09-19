@@ -16,6 +16,10 @@ export default defineConfig({
       include: Object.values(ENTRY_POINTS),
     }),
   ],
+  test: {
+    globalSetup: ["./test/setup/build.ts"],
+    testTimeout: 5000,
+  },
   build: {
     outDir: "dist",
     emptyOutDir: true,

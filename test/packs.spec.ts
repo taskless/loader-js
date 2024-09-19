@@ -4,7 +4,6 @@ import {
   type ConsolePayload,
   type Config,
   type NetworkPayload,
-  type Pack,
 } from "@~/types.js";
 import { http } from "msw";
 import { setupServer } from "msw/node";
@@ -98,8 +97,7 @@ describe("Loading packs", () => {
     const reply = await fetch("https://example.com/sample");
 
     // flush all pending data
-    t.flush();
-    await sleep(30);
+    await t.flush();
 
     // validate expected behaviors
     expect(
