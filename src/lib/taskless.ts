@@ -31,16 +31,17 @@ import type openapi from "../__generated__/openapi.js";
 // our on-demand worker code for a synchronous flush
 const workerCode = /* js */ `
 const {
-  parentPort, workerData: { notifyHandle, port2, options }
+  parentPort, workerData: { notifyHandle, data }
 } = require('worker_threads');
 
-(async () => {
-  const response = await fetch(options.url, options.requestInit);
-  const text = await response.text();
-  port2.postMessage({ text });
+const run = async () => {
+  const response = await fetch(data.url, data.requestInit);
+};
+
+run().catch(() => {}).finally(() -=> {
   Atomics.store(notifyHandle, 0, 1);
   Atomics.notify(notifyHandle, 0);
-})();
+})
 `;
 
 // a throwable function
@@ -230,14 +231,12 @@ export const taskless = (
     ) {
       // worker setup
       const notifyHandle = new Int32Array(new SharedArrayBuffer(4));
-      const { port1, port2 } = new MessageChannel();
 
       const w = new Worker(workerCode, {
         eval: true,
         workerData: {
           notifyHandle,
-          port2,
-          options: {
+          data: {
             url: `${activeEndpoint}/v1/events`,
             requestInit: {
               method: "POST",
@@ -249,7 +248,6 @@ export const taskless = (
             },
           },
         },
-        transferList: [port2],
       });
       // wait for notify
       Atomics.wait(notifyHandle, 0, 0);
