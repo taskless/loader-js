@@ -46,7 +46,8 @@ const run = async () => {
   }
 };
 
-run();
+// ensure we run on the next tick
+setTimeout(run, 0);
 `;
 
 // a throwable function
