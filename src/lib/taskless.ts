@@ -33,15 +33,20 @@ const workerCode = /* js */ `
 const {
   parentPort, workerData: { notifyHandle, data }
 } = require('worker_threads');
+const fs = require('fs');
 
 const run = async () => {
-  const response = await fetch(data.url, data.requestInit);
+  try {
+    await fetch(data.url, data.requestInit);
+  }
+  catch {}
+  finally {
+    Atomics.store(notifyHandle, 0, 1);
+    Atomics.notify(notifyHandle, 0);
+  }
 };
 
-run().catch(() => {}).finally(() -=> {
-  Atomics.store(notifyHandle, 0, 1);
-  Atomics.notify(notifyHandle, 0);
-})
+run();
 `;
 
 // a throwable function
@@ -99,6 +104,22 @@ export const taskless = (
   });
   const pending: CaptureItem[] = [];
   let timer: NodeJS.Timeout;
+
+  logger.debug(
+    yaml.dump({
+      resolved: {
+        useNetwork,
+        useLogging,
+        activeEndpoint,
+      },
+      original: {
+        network: options?.network,
+        logging: options?.logging,
+        endpoint: options?.endpoint,
+        logLevel: options?.logLevel,
+      },
+    })
+  );
 
   if (!useNetwork && !useLogging) {
     return {
@@ -232,6 +253,8 @@ export const taskless = (
       // worker setup
       const notifyHandle = new Int32Array(new SharedArrayBuffer(4));
 
+      logger.debug("Spawning worker");
+
       const w = new Worker(workerCode, {
         eval: true,
         workerData: {
@@ -250,6 +273,7 @@ export const taskless = (
         },
       });
       // wait for notify
+      logger.debug("Wait for notify");
       Atomics.wait(notifyHandle, 0, 0);
       w.terminate();
     }

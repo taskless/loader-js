@@ -38,7 +38,7 @@ const castString = (value: string) => {
 };
 
 for (const option of importedOptions) {
-  const [key, value] = option.split("=");
+  const [key, value] = option.split("=", 2);
   options[key] = castString(value);
 }
 

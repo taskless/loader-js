@@ -7,12 +7,14 @@ import {
 } from "@~/types.js";
 import { http } from "msw";
 import { setupServer } from "msw/node";
-import { describe, expect, test, vi } from "vitest";
+import { describe, test, vi } from "vitest";
 import { extractDimension, findLog, findPayload } from "./helpers/find.js";
 import { sleep } from "./helpers/sleep.js";
 
 describe("Loading packs", () => {
-  test("Can programatically add packs that intercept requests", async () => {
+  test("Can programatically add packs that intercept requests", async ({
+    expect,
+  }) => {
     // our msw intercepts requests for inspection
     const msw = setupServer();
     msw.listen();

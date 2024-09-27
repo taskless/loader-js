@@ -1,8 +1,11 @@
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { execa, execaSync } from "execa";
-import { vi, expect, test, afterEach, describe, beforeAll } from "vitest";
+import { execa } from "execa";
+import { vi, test as vitest, afterEach, describe } from "vitest";
 import { taskless } from "../src/core.js";
+import { defaultConfig, withHono } from "./helpers/server.js";
+
+const test = withHono(vitest);
 
 describe("Taskless environment and importing (requires build)", () => {
   afterEach(() => {
@@ -10,18 +13,18 @@ describe("Taskless environment and importing (requires build)", () => {
     vi.unstubAllEnvs();
   });
 
-  test("This project is able to accept tests", (t) => {
+  test("This project is able to accept tests", ({ expect }) => {
     expect(true).toBe(true);
   });
 
-  test("Can import the programatic version of Taskless", async () => {
+  test("Can import the programatic version of Taskless", async ({ expect }) => {
     const t = taskless(undefined, {
       network: false,
     });
     expect(t).toBeDefined();
   });
 
-  test("Can import via autoloader", async () => {
+  test("Can import via autoloader", async ({ expect }) => {
     const { stdout, stderr } = await execa({
       preferLocal: true,
       env: {
@@ -30,12 +33,50 @@ describe("Taskless environment and importing (requires build)", () => {
       cwd: resolve(dirname(fileURLToPath(import.meta.url)), "../"),
     })`node --import=./dist/index.js test/fixtures/end.js`;
 
-    console.log(stdout, stderr);
+    // console.log(stdout, stderr);
 
     expect(stdout).toMatch(/initialized taskless/i);
   });
 
-  test("No network and no logging is an error", async () => {
+  test("Autoloader calls taskless with an API key", async ({
+    hono,
+    expect,
+  }) => {
+    const TASKLESS_OPTIONS = [
+      // local taskless options. Point to the hono server
+      `endpoint=http://localhost:${hono.port}`,
+    ].join(";");
+
+    defaultConfig(hono.app);
+
+    const eventListener = vi.fn();
+
+    hono.app.post("/v1/events", async (c) => {
+      const data = await c.req.json<Record<string, unknown>>();
+      eventListener({
+        body: data,
+      });
+
+      return c.json({});
+    });
+
+    const { stdout, stderr } = await execa({
+      preferLocal: true,
+      env: {
+        TASKLESS_LOG_LEVEL: "debug",
+        TASKLESS_API_KEY: "test",
+        TASKLESS_OPTIONS,
+      },
+      cwd: resolve(dirname(fileURLToPath(import.meta.url)), "../"),
+    })`node --import=./dist/index.js test/fixtures/one.js`;
+
+    expect(stdout).toMatch(/initialized taskless/i);
+    expect(stdout).toMatch(/taskless autoloader ran successfully/i);
+    expect(stdout).toMatch(/performing cleanup/i);
+    expect(eventListener, "Mock event server was called").toBeCalledTimes(1);
+  });
+
+  test("No network and no logging is an error", async ({ expect }) => {
     const { stdout, stderr } = await execa({
       preferLocal: true,
       env: {
