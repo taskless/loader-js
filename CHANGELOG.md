@@ -1,5 +1,11 @@
 # @taskless/loader
 
+## 0.0.17
+
+### Patch Changes
+
+- Ensures workers are ran on the next available tick in-thread
+
 ## 0.0.16
 
 ### Patch Changes
