@@ -1,5 +1,11 @@
 # @taskless/loader
 
+## 0.0.18
+
+### Patch Changes
+
+- d9ccbd8: Removes unnecessary modules from the worker thread
+
 ## 0.0.17
 
 ### Patch Changes
