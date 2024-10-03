@@ -33,7 +33,6 @@ const workerCode = /* js */ `
 const {
   parentPort, workerData: { notifyHandle, data }
 } = require('worker_threads');
-const fs = require('fs');
 
 const run = async () => {
   try {
