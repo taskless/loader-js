@@ -1,4 +1,3 @@
-
 export default {
   "openapi": "3.1.0",
   "info": {
@@ -67,7 +66,7 @@ export default {
                             "description": "The pack schema version used",
                             "type": "number",
                             "enum": [
-                              1
+                              2
                             ]
                           },
                           "name": {
@@ -86,19 +85,50 @@ export default {
                             "description": "The permissions requested for this pack",
                             "type": "object",
                             "properties": {
-                              "calls": {
-                                "description": "The URLs this pack is allowed to call outside of the primary request, in regex-friendly format",
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
+                              "capture": {
+                                "type": "object",
+                                "additionalProperties": {
+                                  "type": "object",
+                                  "properties": {
+                                    "type": {
+                                      "description": "The type of data to capture",
+                                      "anyOf": [
+                                        {
+                                          "const": "string",
+                                          "type": "string"
+                                        },
+                                        {
+                                          "const": "number",
+                                          "type": "string"
+                                        }
+                                      ]
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "type",
+                                    "description"
+                                  ]
                                 }
                               },
-                              "captures": {
-                                "description": "The dimension keys this pack captures",
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                }
+                              "domains": {
+                                "description": "The domains this pack is allowed to request data from as regular expressions. A single null allows all domains",
+                                "anyOf": [
+                                  {
+                                    "type": "null"
+                                  },
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
                               },
                               "environment": {
                                 "description": "The environment variables this pack is allowed to access from the host system",
@@ -106,43 +136,34 @@ export default {
                                 "items": {
                                   "type": "string"
                                 }
+                              },
+                              "request": {
+                                "description": "During the lifecycle, additional domains this pack is allowed to request data from",
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
                               }
                             }
                           },
-                          "rules": {
-                            "description": "A set of rules to apply when this pack is used",
-                            "type": "array",
-                            "items": {
-                              "type": "object",
-                              "properties": {
-                                "matches": {
-                                  "description": "A regex-friendly match string that will be used to check every outgoing URL",
-                                  "type": "string"
-                                },
-                                "hooks": {
-                                  "type": "object",
-                                  "properties": {
-                                    "pre": {
-                                      "description": "The hook script, written in lua",
-                                      "type": "string"
-                                    },
-                                    "post": {
-                                      "description": "The hook script, written in lua",
-                                      "type": "string"
-                                    }
-                                  },
-                                  "required": [
-                                    "pre",
-                                    "post"
-                                  ]
-                                }
+                          "hooks": {
+                            "type": "object",
+                            "properties": {
+                              "pre": {
+                                "description": "The hook script, written in lua",
+                                "type": "string"
                               },
-                              "required": [
-                                "matches"
-                              ]
-                            }
+                              "post": {
+                                "description": "The hook script, written in lua",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "pre",
+                              "post"
+                            ]
                           },
-                          "modules": {
+                          "displays": {
                             "description": "A set of pre-configured graphs or display modules available in this pack",
                             "type": "array",
                             "items": {
@@ -221,6 +242,22 @@ export default {
                     "organizationId",
                     "packs"
                   ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/public/config": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
                 }
               }
             }

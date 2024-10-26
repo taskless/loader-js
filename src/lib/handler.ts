@@ -1,22 +1,13 @@
-import { captureFunctions } from "@~/lua/capture.bridge.js";
-import { contextFunctions } from "@~/lua/context.bridge.js";
-import { logFunctions } from "@~/lua/log.bridge.js";
-import { usePromise } from "@~/lua/promise.js";
-import { requestFunctions } from "@~/lua/request.bridge.js";
-import { responseFunctions } from "@~/lua/response.bridge.js";
-import { stringFunctions } from "@~/lua/string.bridge.js";
-import { timeFunctions } from "@~/lua/time.bridge.js";
+import { createSandbox, type Options } from "@~/lua/sandbox.js";
 import {
-  type Permissions,
   type CaptureCallback,
-  type DenormalizedRule,
   type HookName,
   type Logger,
+  type Pack,
 } from "@~/types.js";
 import { http, type StrictResponse } from "msw";
-import { type LuaEngine } from "wasmoon";
+import { type LuaFactory, type LuaEngine } from "wasmoon";
 import { id } from "./id.js";
-import { runLifecycle } from "./lua.js";
 
 /** Checks if a request is bypassed */
 const isBypassed = (request: Request) => {
@@ -25,16 +16,16 @@ const isBypassed = (request: Request) => {
 
 export const createHandler = ({
   loaded,
-  engine,
+  factory,
   logger,
-  getRules,
   capture,
+  getPacks,
 }: {
   loaded: Promise<boolean>;
-  engine: Promise<LuaEngine>;
+  factory: LuaFactory;
   logger: Logger;
-  getRules: () => Promise<DenormalizedRule[]>;
   capture: CaptureCallback;
+  getPacks: () => Promise<Pack[]>;
 }) =>
   http.all("https://*", async (info) => {
     // wait for loaded to unblock (means the shim library has loaded)
@@ -46,130 +37,132 @@ export const createHandler = ({
       return undefined;
     }
 
-    // our lua engine and a namespace safe for our JS bridge
-    const lua = await engine;
     const requestId = id();
     logger.debug(`[${requestId}] started`);
 
-    const hooks: Record<HookName, string[]> = {
-      pre: [],
-      post: [],
-    };
-    const activeRules: Record<HookName, DenormalizedRule[]> = {
+    // find matching packs from the config based on a domain match
+    // on match, start an async process that makes a lua engine and saves the pack info
+    const packs = await getPacks();
+    logger.debug(`[${requestId}] scanning ${packs.length} packs`);
+
+    const hooks: Record<
+      HookName,
+      Array<{
+        engine: Promise<LuaEngine>;
+        options: Options;
+        code: string;
+      }>
+    > = {
       pre: [],
       post: [],
     };
 
-    const rules = await getRules();
+    const cleanup: Array<() => Promise<void>> = [];
 
-    // load all matching hooks and record permissions at each hook's step
-    for (const rule of rules) {
-      if (!rule.__.matches.test(info.request.url)) {
+    // create our engine for any matching packs
+    for (const pack of packs) {
+      // skip packs without hooks
+      if (!pack.hooks) {
         continue;
       }
 
-      // pre lifecycle is in forward order
-      if (rule.hooks?.pre) {
-        hooks.pre.push(rule.hooks.pre.trim());
-        activeRules.pre.push(rule);
+      // skip non-domain matches
+      if (!pack.permissions?.domains) {
+        continue;
       }
 
-      // post lifecycle is in reverse order
-      if (rule.hooks?.post) {
-        hooks.post.unshift(rule.hooks.post.trim());
-        activeRules.post.unshift(rule);
+      let matched = false;
+      for (const domain of pack.permissions.domains) {
+        if (new RegExp(domain).test(info.request.url)) {
+          matched = true;
+          break;
+        }
       }
+
+      if (!matched) {
+        continue;
+      }
+
+      // register hooks
+      const engine = factory.createEngine();
+      const coreOptions = {
+        logger,
+        permissions: pack.permissions,
+        request: info.request,
+        capture: {
+          callback: capture,
+        },
+        context: new Map(),
+      };
+
+      if (pack.hooks.pre) {
+        hooks.pre.push({
+          engine,
+          options: coreOptions,
+          code: pack.hooks.pre,
+        });
+      }
+
+      if (pack.hooks.post) {
+        hooks.post.push({
+          engine,
+          options: coreOptions,
+          code: pack.hooks.post,
+        });
+      }
+
+      // add the cleanup task regardless
+      cleanup.push(async () => {
+        const lua = await engine;
+        lua.global.close();
+      });
     }
 
-    const [logLibrary, stringLibrary, timeLibrary, contextLibrary] =
-      await Promise.all([
-        logFunctions({ logger, rules: activeRules }),
-        stringFunctions({ logger, rules: activeRules }),
-        timeFunctions({ logger, rules: activeRules }),
-        contextFunctions({ logger, rules: activeRules }),
-      ]);
-
-    const [requestLibrary, tasklessLibrary] = await Promise.all([
-      requestFunctions(
-        { logger, rules: activeRules },
-        { request: info.request }
-      ),
-      captureFunctions(
-        {
-          logger,
-          rules: activeRules,
-        },
-        {
-          capture,
-          requestId,
-        }
-      ),
-    ]);
-
-    const requestLocals = {
-      // available non-namespaced
-      ...logLibrary.functions,
-      ...stringLibrary.functions,
-      ...timeLibrary.functions,
-      // namespaced
-      context: contextLibrary.functions,
-      request: requestLibrary.functions,
-      taskless: tasklessLibrary.functions,
-    };
-
-    // PRE lifecycle
-    await runLifecycle(
-      lua,
-      {
-        id: "pre",
-        set: requestLocals,
-        blocks: hooks.pre,
-        async: ["request.getBody"],
-        headers: [await usePromise(lua)],
-      },
-      { logger, debugId: `${requestId}.hooks.pre` }
+    logger.debug(
+      `[${requestId}] pre (${hooks.pre.length}) / post (${hooks.post.length})`
     );
 
-    // Finalize and capture key data
-    const finalizedRequest = requestLibrary.internal.finalize();
-    capture({
-      requestId,
-      dimension: "url",
-      value: finalizedRequest.url,
-    });
-    capture({
-      requestId,
-      dimension: "domain",
-      value: new URL(finalizedRequest.url).hostname,
-    });
+    logger.debug(`[${requestId}] pre hooks`);
+
+    // run pre
+    await Promise.all(
+      hooks.pre.map<Promise<void>>(async (hook) => {
+        const lua = await hook.engine;
+        const sandbox = await createSandbox(requestId, hook.options);
+        for (const [name, value] of Object.entries(sandbox.variables)) {
+          lua.global.set(name, value);
+        }
+
+        await lua.doString([...sandbox.headers, hook.code].join("\n"));
+      })
+    );
 
     // Fetch
+    logger.debug(`[${requestId}] sending request`);
+    const finalizedRequest = info.request;
     finalizedRequest.headers.set("x-tskl-bypass", "1");
     const fetchResponse = await fetch(finalizedRequest);
 
-    // add to our locals for the response
-    const responseLibrary = await responseFunctions(
-      { logger, rules: activeRules },
-      { response: fetchResponse }
+    logger.debug(`[${requestId}] post hooks`);
+
+    // run post
+    await Promise.all(
+      hooks.post.map<Promise<void>>(async (hook) => {
+        const lua = await hook.engine;
+        const sandbox = await createSandbox(requestId, {
+          ...hook.options,
+          response: fetchResponse,
+        });
+        for (const [name, value] of Object.entries(sandbox.variables)) {
+          lua.global.set(name, value);
+        }
+
+        await lua.doString([...sandbox.headers, hook.code].join("\n"));
+      })
     );
 
-    const responseLocals = {
-      ...requestLocals,
-      response: responseLibrary.functions,
-    };
+    // cleanup
+    await Promise.allSettled(cleanup.map(async (step) => step()));
 
-    // POST lifecycle
-    await runLifecycle(
-      lua,
-      {
-        id: "post",
-        set: responseLocals,
-        blocks: hooks.post,
-        async: ["request.getBody", "response.getBody"],
-        headers: [await usePromise(lua)],
-      },
-      { logger, debugId: `${requestId}.hooks.post` }
-    );
-
-    return responseLibrary.internal.finalize() as StrictResponse<any>;
+    return fetchResponse as StrictResponse<any>;
   });

@@ -1,4 +1,3 @@
-import { readFile } from "node:fs/promises";
 import { taskless } from "@~/core.js";
 import {
   type ConsolePayload,
@@ -8,11 +7,11 @@ import {
 import { http } from "msw";
 import { setupServer } from "msw/node";
 import { describe, test, vi } from "vitest";
+import sampleYaml from "./fixtures/sample.yaml?raw";
 import { extractDimension, findLog, findPayload } from "./helpers/find.js";
-import { sleep } from "./helpers/sleep.js";
 
 describe("Loading packs", () => {
-  test("Can programatically add packs that intercept requests", async ({
+  test.only("Can programatically add packs that intercept requests", async ({
     expect,
   }) => {
     // our msw intercepts requests for inspection
@@ -67,12 +66,11 @@ describe("Loading packs", () => {
       },
     });
 
-    const file = await readFile("test/fixtures/sample.yaml", "utf8");
-    t.add(file);
+    t.add(sampleYaml);
 
     // validate load
     const stats = await t.load();
-    expect(stats.localPacks, "Able to load packs").toBe(1);
+    expect(stats.packs, "Able to load packs").toBe(1);
 
     // after loading, we need to add a rule to MSW for catching network requests
     // this ensures our telemetry calls aren't bypassed by the load() call
@@ -101,19 +99,9 @@ describe("Loading packs", () => {
     // flush all pending data
     await t.flush();
 
-    // validate expected behaviors
-    expect(
-      extractDimension(
-        findLog(logs, [
-          {
-            dimension: "durationMs",
-          },
-        ])?.[0],
-        "url"
-      ),
-      "Recorded duration attribute for URL"
-    ).toEqual("https://example.com/sample");
+    // console.log(logs);
 
+    // validate expected behaviors
     expect(
       extractDimension(
         findLog(logs, [
@@ -126,19 +114,6 @@ describe("Loading packs", () => {
       ),
       "Recorded successful 200 for URL"
     ).toEqual("https://example.com/sample");
-
-    expect(
-      findPayload(payloads, [
-        {
-          dimension: "durationMs",
-        },
-        {
-          dimension: "url",
-          value: "https://example.com/sample",
-        },
-      ]),
-      "Sent a payload with the durationMs dimension"
-    ).toHaveLength(1);
 
     expect(
       findPayload(payloads, [

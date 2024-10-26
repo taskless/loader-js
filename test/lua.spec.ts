@@ -1,6 +1,4 @@
-import { createLogger } from "@~/lib/logger.js";
-import { runLifecycle } from "@~/lib/lua.js";
-import { usePromise } from "@~/lua/promise.js";
+import luaGet from "@~/lua/get.lua?raw";
 import { dedent } from "ts-dedent";
 import { test as vitest, describe, vi } from "vitest";
 import { type LuaEngine, LuaFactory } from "wasmoon";
@@ -25,108 +23,30 @@ const test = vitest.extend<{
   },
 });
 
-describe("Lua environment capabilities", (t) => {
-  test("lua sandbox with async support", async ({ expect, lua }) => {
-    const fixture = {
-      globalSync: vi
-        .fn()
-        .mockImplementation(
-          (block, testValue) => `global sync (${block} ${testValue})`
-        ),
-      globalAsync: vi
-        .fn()
-        .mockImplementation(
-          async (block, testValue) => `global async (${block} ${testValue})`
-        ),
-      namespaced: {
-        nsSync: vi
-          .fn()
-          .mockImplementation(
-            (block, testValue) => `ns sync (${block} ${testValue})`
-          ),
-        nsSyncAlt: vi
-          .fn()
-          .mockImplementation(
-            (block, testValue) => `ns sync (${block} ${testValue})`
-          ),
-        nsAsync: vi
-          .fn()
-          .mockImplementation(
-            async (block, testValue) => `ns async (${block} ${testValue})`
-          ),
+describe("Lua language helpers", (t) => {
+  test("get(table, ...)", async ({ expect, lua }) => {
+    lua.global.set("data", {
+      one: {
+        two: {
+          three: {
+            four: "five",
+          },
+        },
       },
-    };
+    });
 
-    const logShim = {
-      info: vi.fn(),
-      debug: vi.fn(),
-      error: vi.fn(),
-    };
-    const logger = createLogger("debug", logShim);
+    const write = vi.fn();
+    lua.global.set("write", write);
 
     const script = dedent`
-      globalSync("gs1")
-      globalAsync("gsa1"):next(function()
-        namespaced.nsSync("ns1")
-        -- no waiting (would be unhandled promise rejection)
-        namespaced.nsAsync("nsa1")
-        namespaced.nsSyncAlt("ns2")
-      end):catch(function(err)
-        print("Error", err)
-      end)
+      ${luaGet}
+      write(get(data, "one", "two", "three", "four"));
+      write(get(data, "a", "b", "c"))
     `;
 
-    await runLifecycle(
-      lua,
-      {
-        id: "test",
-        blocks: [script],
-        set: fixture,
-        headers: [await usePromise(lua)],
-        async: ["globalAsync", "namespaced.nsAsync"],
-      },
-      { logger, debugId: "test" }
-    );
+    await lua.doString(script);
 
-    expect(fixture.globalSync).toBeCalledWith("test_0", "gs1");
-    expect(fixture.globalAsync).toBeCalledWith("test_0", "gsa1");
-    expect(fixture.namespaced.nsSync).toBeCalledWith("test_0", "ns1");
-    expect(fixture.namespaced.nsSyncAlt).toBeCalledWith("test_0", "ns2");
-    expect(fixture.namespaced.nsAsync).toBeCalledWith("test_0", "nsa1");
-
-    expect(true).toBe(true);
-  });
-
-  test("Promise library tests", async ({ expect, lua }) => {
-    const promiseLibrary = await usePromise(lua);
-    const sequence = vi.fn();
-    lua.global.set("sequence", sequence);
-
-    const fixture = dedent`
-      local run = function()
-        ${promiseLibrary}
-
-        sequence("start")
-        promise = Promise.new()
-        promise:next(function()
-          -- complete
-          sequence("next")
-          return nil
-        end)
-        promise:resolve()
-
-        -- holds lua open until all promises are settled
-        Promise.wait():await()
-        sequence("done")
-      end
-      -- run the script
-      run()
-    `;
-
-    await lua.doString(fixture);
-
-    expect(sequence.mock.calls.flat(), "Promise order preserved").toStrictEqual(
-      ["start", "next", "done"]
-    );
+    expect(write.mock.calls[0][0]).toBe("five");
+    expect(write.mock.calls[1][0]).toBe(null);
   });
 });

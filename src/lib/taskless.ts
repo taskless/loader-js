@@ -5,27 +5,28 @@ import {
   DEFAULT_FLUSH_INTERVAL,
   noop,
   TASKLESS_HOST,
+  emptyConfig,
 } from "@~/constants.js";
 import {
   type Pack,
   type InitOptions,
-  type DenormalizedRule,
   type NetworkPayload,
   type ConsolePayload,
   type CaptureCallback,
   type CaptureItem,
   type TasklessAPI,
   type Logger,
+  type Config,
 } from "@~/types.js";
 import { createClient, type NormalizeOAS } from "fets";
 import yaml from "js-yaml";
 import { setupServer } from "msw/node";
-import { type LuaEngine, LuaFactory } from "wasmoon";
+import { LuaFactory } from "wasmoon";
+import defaultConfig from "../__generated__/config.yaml?raw";
 import { InitializationError } from "./error.js";
 import { createHandler } from "./handler.js";
 import { id } from "./id.js";
 import { createLogger } from "./logger.js";
-import { extractPacks, getConfig, loadRules } from "./service.js";
 import type openapi from "../__generated__/openapi.js";
 
 // our on-demand worker code for a synchronous flush
@@ -66,7 +67,9 @@ const createErrorAPI = <T extends Error>(error: T): TasklessAPI => ({
   load: createThrowable(error),
 });
 
-// intentional deferred antipattern
+// intentional deferred antipattern - loaded is used to unblock the HTTP wrapper
+// it may be checked multiple times, and we rely on the A+ spec to ensure it is
+// resolved once with the same value. Like a massive awaited "onReady"
 let setLoaded: (value: boolean) => void;
 const loaded = new Promise<boolean>((resolve) => {
   setLoaded = resolve;
@@ -147,6 +150,7 @@ export const taskless = (
   function startDrain() {
     /** Inner function to flush and restart drain */
     function flushAndRestart() {
+      logger.debug("Flushing telemetry data");
       flush().catch(noop); // discard flush errors
       startDrain();
     }
@@ -162,7 +166,7 @@ export const taskless = (
     clearTimeout(timer);
   }
 
-  /** Convert a set of entries to compressed network payload */
+  /** Convert a set of log entries to compressed network payload */
   const entriesToNetworkJson = (entries: CaptureItem[]) => {
     const networkPayload: NetworkPayload = {};
     for (const entry of entries) {
@@ -187,7 +191,7 @@ export const taskless = (
     return networkPayload;
   };
 
-  /** Sends a set of entries to the logging function */
+  /** Sends a set of entries to the registered logging function */
   const logEntries = (entries: CaptureItem[]) => {
     for (const entry of entries) {
       logger.data(
@@ -201,7 +205,7 @@ export const taskless = (
     }
   };
 
-  /** Flush all valid pending telemetry */
+  /** Flush all pending telemetry asynchronously */
   const flush = async () => {
     logger.debug("Flushing telemetry data");
     const entries = pending.splice(0, pending.length);
@@ -233,13 +237,17 @@ export const taskless = (
     }
   };
 
+  /**
+   * Synchronous flush. Performs a final send of pending telemetry data
+   * uses a worker thread and Atomics to make the final http call
+   * appear synchronous in the main thread before completely exiting.
+   */
   const flushSync = () => {
     const entries = pending.splice(0, pending.length);
+    logger.debug(`Flushing (sync) ${entries.length} entries`);
     if (entries.length === 0) {
       return;
     }
-
-    logger.debug("Flushing telemetry data (sync)");
 
     const networkPayload = useNetwork
       ? entriesToNetworkJson(entries)
@@ -284,6 +292,7 @@ export const taskless = (
   };
 
   const exitHandler = () => {
+    logger.debug("Shutting down Taskless");
     stopDrain();
     flushSync();
   };
@@ -299,19 +308,51 @@ export const taskless = (
     process.on(event, exitHandler);
   }
 
-  // a bunch of promises to not block on. Hold their awaited values instead
+  /** A lua factory for creating WASM VMs */
   const factory = new LuaFactory();
-  const promisedConfig = getConfig(secret, { logger, client });
-  const promisedPacks = extractPacks(promisedConfig);
-  const promisedEngine = factory.createEngine();
-  let resolvedLua: LuaEngine | undefined;
 
-  /** Local packs can be added manually via add() on the programatic API */
-  const localPacks: Pack[] = [];
-  /** All rules, flattened and resolved at initialization time */
-  const rules: DenormalizedRule[] = [];
+  /** Packs are added programatically or during the init step */
+  const packs: Pack[] = [];
+
   /** Initialization flag, ensures we passed through init */
   let initialized = false;
+
+  /**
+   * Fetches the config, storing the result in a promise to resolve later.
+   * Using a promise keeps taskless() synchronous for JS loaders and avoid
+   * race conditions.
+   */
+  const promisedConfig = (async () => {
+    if (!secret) {
+      return yaml.load(defaultConfig, {
+        schema: yaml.FAILSAFE_SCHEMA,
+      }) as Config;
+    }
+
+    const response = await client["/{version}/config"].get({
+      headers: {
+        authorization: `Bearer ${secret}`,
+      },
+      params: {
+        version: "v1",
+      },
+    });
+
+    if (!response.ok) {
+      logger.error(
+        `Failed to fetch configuration: ${response.status} ${response.statusText}. Taskless will not apply rules.`
+      );
+      return emptyConfig;
+    }
+
+    const data = await response.json();
+
+    logger.debug(
+      `Retrieved configuration from Taskless (orgId: ${data.organizationId}, schema: ${data.schema})`
+    );
+
+    return data;
+  })();
 
   /** Initialize all local rules and ensure remote rules are loaded */
   const initialize = async () => {
@@ -321,20 +362,14 @@ export const taskless = (
       );
     }
 
+    // freeze
     initialized = true;
-    const [remote, local] = await Promise.all([
-      loadRules(promisedPacks, promisedConfig),
-      loadRules(localPacks, promisedConfig),
-    ]);
 
-    logger.debug(
-      `Loaded ${remote.length} remote rules and ${local.length} local rules`
-    );
-
-    const lua = await promisedEngine;
-    resolvedLua = lua;
-
-    rules.push(...[remote, local].flat());
+    // copy packs from the config
+    const config = await promisedConfig;
+    for (const pack of config.packs ?? []) {
+      packs.unshift(pack);
+    }
 
     // start the drain
     startDrain();
@@ -352,10 +387,6 @@ export const taskless = (
     logger.debug("Performing cleanup");
     // disable queue timer
     clearTimeout(timer);
-    // close the lua engine
-    if (resolvedLua) {
-      resolvedLua.global.close();
-    }
   };
 
   /**
@@ -376,10 +407,10 @@ export const taskless = (
   // create the msw interceptor
   const handler = createHandler({
     loaded,
-    engine: promisedEngine,
+    factory,
     logger,
-    getRules: async () => rules,
     capture,
+    getPacks: async () => packs,
   });
 
   /** MSW instance: If one is programatically provided, use that instead */
@@ -396,26 +427,33 @@ export const taskless = (
   const api = {
     /** add additional local packs programatically */
     add(pack: string) {
+      if (initialized) {
+        throw new Error("A pack was added after Taskless was initialized");
+      }
+
       const data = typeof pack === "string" ? (yaml.load(pack) as Pack) : pack;
-      localPacks.push(data);
+      packs.push(data);
     },
+
     /** get the current logger */
     logger,
+
     /** Explicitly flush any pending logs. Useful before shutting down to ensure all events are captured */
     async flush() {
       clearTimeout(timer);
       return flush();
     },
+
     /** Flush all pending logs synchronously */
     flushSync,
+
     /** Load all registered packs and initialize Taskless */
     async load() {
       await initialize();
-      const remotePacks = await promisedPacks;
+
       return {
         network: useNetwork,
-        remotePacks: remotePacks.length,
-        localPacks: localPacks.length,
+        packs: packs.length,
       };
     },
   };

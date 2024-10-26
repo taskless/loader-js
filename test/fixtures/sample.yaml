@@ -1,17 +1,31 @@
 # Sample YAML file similar to what is tied to an organization on taskless.io
-pack: 1
+schema: 2
 name: "@taskless/test"
-version: "1.0.0"
-description: Test pack with basic functionality expressed
+version: 1.0.0
+description: >
+  Test pack
 permissions:
+  domains:
+    - ".*" # All domains
   captures:
-    - "durationMs"
-    - "status"
-rules:
-  - matches: "https://.+"
-    hooks:
-      pre: |
-        context.set("start", now())
-      post: |
-        taskless.capture("durationMs", now() - context.get("start"))
-        taskless.capture("status", response.getStatus())
+    testData:
+      type: string
+      description: Test data
+    status:
+      type: number
+      description: Response status
+    url:
+      type: string
+      description: URL of the request
+    domain:
+      type: string
+      description: Domain of the request
+hooks:
+  pre: |
+    -- this is a pre hook
+    capture("testData", "tested-ok")
+    capture("url", request.url)
+    capture("domain", request.domain)
+  post: |
+    -- this is a post hook
+    capture("status", response.status)

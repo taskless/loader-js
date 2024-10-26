@@ -17,7 +17,6 @@ export default defineConfig({
     }),
   ],
   test: {
-    globalSetup: ["./test/setup/build.ts"],
     testTimeout: 5000,
   },
   build: {

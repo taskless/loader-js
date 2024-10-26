@@ -1,13 +1,20 @@
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execa } from "execa";
-import { vi, test as vitest, afterEach, describe } from "vitest";
+import { vi, test as vitest, afterEach, describe, beforeAll } from "vitest";
 import { taskless } from "../src/core.js";
 import { defaultConfig, withHono } from "./helpers/server.js";
 
 const test = withHono(vitest);
 
 describe("Taskless environment and importing (requires build)", () => {
+  beforeAll(async () => {
+    const { stdout, stderr } = await execa({
+      preferLocal: true,
+      cwd: resolve(dirname(fileURLToPath(import.meta.url)), "../"),
+    })`pnpm build`;
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllEnvs();
@@ -73,6 +80,7 @@ describe("Taskless environment and importing (requires build)", () => {
     expect(stdout).toMatch(/initialized taskless/i);
     expect(stdout).toMatch(/taskless autoloader ran successfully/i);
     expect(stdout).toMatch(/performing cleanup/i);
+    // console.log(stdout);
     expect(eventListener, "Mock event server was called").toBeCalledTimes(1);
   });
 

@@ -22,5 +22,7 @@ run("example.com", async () => {
 // wait for all requests to conclude
 await Promise.all(allRuns);
 
+console.log("Done");
+
 // exit
 exit(0);

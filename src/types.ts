@@ -69,8 +69,7 @@ export type TasklessAPI = {
   flushSync(): void;
   load(): Promise<{
     network: boolean;
-    remotePacks: number;
-    localPacks: number;
+    packs: number;
   }>;
 };
 
@@ -82,23 +81,10 @@ export type Config = OASOutput<
 >;
 /** Describes a pack in the Config */
 export type Pack = Config["packs"][number];
-/** Describes a rule in the Pack */
-export type Rule = NonNullable<Pack["rules"]>[number];
 /** Creates a pick-list of valid hook types */
-export type HookName = keyof NonNullable<Rule["hooks"]>;
+export type HookName = keyof NonNullable<Pack["hooks"]>;
 /** Pack sends collection */
 export type Permissions = Pack["permissions"];
-
-/** Describes a denormalized rule, supplemented with information from its parent object(s) */
-export type DenormalizedRule = Rule & {
-  __: {
-    matches: RegExp;
-    packName: string;
-    packVersion: string;
-    configOrganizationId: string;
-    permissions: Permissions;
-  };
-};
 
 /** Network payload intended for Taskless */
 export type NetworkPayload = NonNullable<
@@ -127,33 +113,3 @@ export type CaptureItem = {
 
 /** The capture callback does not include a sequence id by default. It is added later */
 export type CaptureCallback = (entry: Omit<CaptureItem, "sequenceId">) => void;
-
-export type LuaBridgeFunction = (...args: any[]) => unknown;
-
-/**
- * Describes a set of lua functions that run in the native language,
- * via functions.*, and any internal functions that are not exposed via
- * internal.*
- **/
-export type LuaBridge<
-  TInternal = Record<string, (...args: any[]) => MaybePromise<unknown>>,
-> = {
-  functions: Record<string, LuaBridgeFunction>;
-  internal: TInternal;
-};
-
-export type LuaBridgeBuilder<
-  T = undefined,
-  TInternal = Record<string, never>,
-> = T extends undefined
-  ? (options: {
-      logger: Logger;
-      rules: Record<HookName, DenormalizedRule[]>;
-    }) => MaybePromise<LuaBridge<TInternal>>
-  : (
-      options: {
-        logger: Logger;
-        rules: Record<string, DenormalizedRule[]>;
-      },
-      builderOptions: T
-    ) => MaybePromise<LuaBridge<TInternal>>;
