@@ -1,5 +1,17 @@
 # @taskless/loader
 
+## 0.0.18
+
+### Patch Changes
+
+- 92d8e00: 💥 (BREAKING) Changes to a non-transformative pipeline
+  The pipeline no longer has the ability to edit requests. This is a breaking change for any pipelines that relied on the functionality. The removal of this feature improves pipeline performance, as all steps can be done in parallel and not block the outgoing request. If we do bring hooks back for transformation, we'll likely add them as a specific hook type instead of co-opting the request watching functionality.
+
+  This also significantly decreases the Lua footprint. Most of the lua code was dedicated to a Promises/A+ implementation and co-run scripting sandboxes, which is no longer necessary. Instead, a single pack now receives its own Lua VM (300KB) executed in parallel.
+
+- af64692: Creates the packcheck utility for validating Lua scripting packs. This makes it possible to check your own Taskless packs without having to upload them to the Taskless server. The packcheck commands takes a pack or config (in yaml), and stands up a mock service worker to emulate the full Taskless lifecycle. It then returns the response as a consolidated JSON object you can assert on.
+- d9ccbd8: Removes unnecessary modules from the worker thread
+
 ## 0.0.17
 
 ### Patch Changes
