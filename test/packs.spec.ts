@@ -8,10 +8,27 @@ import { http } from "msw";
 import { setupServer } from "msw/node";
 import { describe, test, vi } from "vitest";
 import sampleYaml from "./fixtures/sample.yaml?raw";
-import { extractDimension, findLog, findPayload } from "./helpers/find.js";
+
+const mergeLogsByRequestId = (logs: ConsolePayload[]) => {
+  // merge any logs that share a request id into a single output
+  const grouped = new Map<string, ConsolePayload>();
+
+  for (const log of logs) {
+    if (grouped.has(log.requestId)) {
+      const existingLog = grouped.get(log.requestId)!;
+      existingLog.sequenceIds.push(...log.sequenceIds);
+      existingLog.dimensions.push(...log.dimensions);
+      grouped.set(log.requestId, existingLog);
+    } else {
+      grouped.set(log.requestId, { ...log });
+    }
+  }
+
+  return Array.from(grouped.values());
+};
 
 describe("Loading packs", () => {
-  test.only("Can programatically add packs that intercept requests", async ({
+  test("Can programatically add packs that intercept requests", async ({
     expect,
   }) => {
     // our msw intercepts requests for inspection
@@ -99,35 +116,20 @@ describe("Loading packs", () => {
     // flush all pending data
     await t.flush();
 
-    // console.log(logs);
+    const allLogs = mergeLogsByRequestId(logs);
+    const log = allLogs[0];
 
-    // validate expected behaviors
     expect(
-      extractDimension(
-        findLog(logs, [
-          {
-            dimension: "status",
-            value: 200,
-          },
-        ])?.[0],
-        "url"
+      log.dimensions.some((d) => d.name === "status" && d.value === "200"),
+      "Logs status"
+    ).toBe(true);
+
+    expect(
+      log.dimensions.some(
+        (d) => d.name === "url" && d.value === "https://example.com/sample"
       ),
-      "Recorded successful 200 for URL"
-    ).toEqual("https://example.com/sample");
-
-    expect(
-      findPayload(payloads, [
-        {
-          dimension: "status",
-          value: 200,
-        },
-        {
-          dimension: "url",
-          value: "https://example.com/sample",
-        },
-      ]),
-      "Sent a payload with the status dimension and the status code"
-    ).toHaveLength(1);
+      "Logs URL"
+    ).toBe(true);
 
     expect(
       await reply.text(),

@@ -37,7 +37,7 @@ rules:
         taskless.capture("status", response.getStatus())
 `;
 
-const t = await taskless(process.env.TASKLESS_API_KEY);
+const t = taskless(process.env.TASKLESS_API_KEY);
 t.add(pack);
 await t.load();
 

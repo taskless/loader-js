@@ -6,6 +6,7 @@ import dts from "vite-plugin-dts";
 const ENTRY_POINTS = {
   index: "./src/index.ts",
   core: "./src/core.ts",
+  "dev/packcheck": "./src/dev/packcheck.ts",
 };
 
 export default defineConfig({

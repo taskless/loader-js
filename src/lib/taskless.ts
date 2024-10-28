@@ -11,12 +11,14 @@ import {
   type Pack,
   type InitOptions,
   type NetworkPayload,
-  type ConsolePayload,
   type CaptureCallback,
   type CaptureItem,
   type TasklessAPI,
   type Logger,
   type Config,
+  isConfig,
+  isPack,
+  type ConsolePayload,
 } from "@~/types.js";
 import { createClient, type NormalizeOAS } from "fets";
 import yaml from "js-yaml";
@@ -193,15 +195,28 @@ export const taskless = (
 
   /** Sends a set of entries to the registered logging function */
   const logEntries = (entries: CaptureItem[]) => {
+    // group all entries by their request id
+    const grouped = new Map<string, ConsolePayload>();
+
+    // convert entries to the grouped structure
     for (const entry of entries) {
-      logger.data(
-        JSON.stringify({
-          req: entry.requestId,
-          seq: entry.sequenceId,
-          dim: entry.dimension,
-          val: entry.value,
-        } satisfies ConsolePayload)
-      );
+      const group = grouped.get(entry.requestId) ?? {
+        requestId: entry.requestId,
+        sequenceIds: [],
+        dimensions: [],
+      };
+
+      group.sequenceIds.push(entry.sequenceId);
+      group.dimensions.push({
+        name: entry.dimension,
+        value: entry.value,
+      });
+
+      grouped.set(entry.requestId, group);
+    }
+
+    for (const [_id, line] of grouped.entries()) {
+      logger.data(JSON.stringify(line));
     }
   };
 
@@ -425,14 +440,26 @@ export const taskless = (
   }
 
   const api = {
-    /** add additional local packs programatically */
-    add(pack: string) {
+    /** add additional local packs programatically, or an entire configuration */
+    add(packOrConfig: string) {
       if (initialized) {
         throw new Error("A pack was added after Taskless was initialized");
       }
 
-      const data = typeof pack === "string" ? (yaml.load(pack) as Pack) : pack;
-      packs.push(data);
+      const data =
+        typeof packOrConfig === "string"
+          ? yaml.load(packOrConfig)
+          : packOrConfig;
+
+      const loadedConfig: Config = isConfig(data)
+        ? data
+        : {
+            schema: 1,
+            organizationId: "none",
+            packs: [...(isPack(data) ? [data] : [])],
+          };
+
+      packs.push(...loadedConfig.packs);
     },
 
     /** get the current logger */

@@ -86,6 +86,42 @@ export type HookName = keyof NonNullable<Pack["hooks"]>;
 /** Pack sends collection */
 export type Permissions = Pack["permissions"];
 
+export function isConfig(value?: unknown): value is Config {
+  if (!value || typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const check = value as Config;
+
+  if (
+    check.organizationId !== undefined &&
+    Array.isArray(check.packs) &&
+    check.schema !== undefined
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+export function isPack(value?: unknown): value is Pack {
+  if (!value || typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const check = value as Pack;
+
+  if (
+    check.name !== undefined &&
+    check.schema !== undefined &&
+    check.version !== undefined
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 /** Network payload intended for Taskless */
 export type NetworkPayload = NonNullable<
   OASInput<NormalizeOAS<typeof openapi>, "/{version}/events", "post", "json">
@@ -93,14 +129,15 @@ export type NetworkPayload = NonNullable<
 
 /** Console payload intended for stdout */
 export type ConsolePayload = {
-  /** The request ID */
-  req: string;
-  /** The sequenceID */
-  seq: string;
-  /** The dimension name */
-  dim: string;
-  /** The dimension's value */
-  val: string;
+  /** The request ID. Can be used on the backend to merge related logs from a request */
+  requestId: string;
+  /** The sequenceIDs connected to this log entry */
+  sequenceIds: string[];
+  /** The dimension name & value that are recorded */
+  dimensions: Array<{
+    name: string;
+    value: string;
+  }>;
 };
 
 /** The object generated during a telemetry capture */
