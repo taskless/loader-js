@@ -1,6 +1,7 @@
 /* eslint-disable n/no-process-env */
 import process from "node:process";
-import { type ConsolePayload, taskless } from "@~/core.js";
+import { taskless } from "@~/core.js";
+import { type ConsolePayload } from "@~/types.js";
 import { http } from "msw";
 import { setupServer } from "msw/node";
 
@@ -13,7 +14,10 @@ type Fixture = {
  * Packcheck - simple tool for checking your Taskless packs, easily integrated
  * with your existing unit testing framework
  */
-export async function packcheck(configOrPack: string, fixture: Fixture) {
+export async function packCheck(
+  configOrPack: string,
+  fixture: Fixture
+): Promise<ConsolePayload> {
   if (process.env.NODE_ENV === "production") {
     throw new Error(
       "Taskless `dev` actions cannot be used in production node environments"
@@ -69,3 +73,5 @@ export async function packcheck(configOrPack: string, fixture: Fixture) {
   const result = Array.from(grouped.values())[0] ?? {};
   return result;
 }
+
+export { type ConsolePayload } from "@~/types.js";

@@ -14,7 +14,7 @@ export default defineConfig({
     tsconfigPaths(),
     externalizeDeps(),
     dts({
-      include: Object.values(ENTRY_POINTS),
+      include: ["src/**/*"],
     }),
   ],
   test: {

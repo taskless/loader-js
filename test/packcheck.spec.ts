@@ -1,10 +1,10 @@
-import { packcheck } from "@~/dev/packcheck.js";
+import { packCheck } from "@~/dev/packcheck.js";
 import { describe, test } from "vitest";
 import sampleYaml from "./fixtures/sample.yaml?raw";
 
 describe("Packcheck", () => {
   test("Packcheck assertion library is working", async ({ expect }) => {
-    const results = await packcheck(sampleYaml, {
+    const results = await packCheck(sampleYaml, {
       request: new Request("https://example.com"),
       response: new Response("Hello world!"),
     });

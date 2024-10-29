@@ -2,9 +2,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execa } from "execa";
 import { vi, test as vitest, afterEach, describe, beforeAll } from "vitest";
-import { packcheck } from "../dist/dev/packcheck.js";
 import { taskless } from "../src/core.js";
-import sampleYaml from "./fixtures/sample.yaml?raw";
 import { defaultConfig, withHono } from "./helpers/server.js";
 
 const test = withHono(vitest);

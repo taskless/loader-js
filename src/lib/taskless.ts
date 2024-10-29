@@ -514,3 +514,5 @@ export const autoload = (secret?: string, options?: InitOptions) => {
     handleError(error);
   }
 };
+
+export type * from "../types.js";
