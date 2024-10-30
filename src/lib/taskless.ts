@@ -63,6 +63,7 @@ const createThrowable =
 /** A default no-op API */
 const createErrorAPI = <T extends Error>(error: T): TasklessAPI => ({
   add: createThrowable(error),
+  addDefaultPacks: createThrowable(error),
   flush: createThrowable(error),
   flushSync: createThrowable(error),
   logger: createThrowable(error) as unknown as Logger,
@@ -152,7 +153,7 @@ export const taskless = (
   function startDrain() {
     /** Inner function to flush and restart drain */
     function flushAndRestart() {
-      logger.debug("Flushing telemetry data");
+      logger.trace("Flushing telemetry data");
       flush().catch(noop); // discard flush errors
       startDrain();
     }
@@ -222,7 +223,7 @@ export const taskless = (
 
   /** Flush all pending telemetry asynchronously */
   const flush = async () => {
-    logger.debug("Flushing telemetry data");
+    logger.trace("Flushing telemetry data");
     const entries = pending.splice(0, pending.length);
     const networkPayload = useNetwork
       ? entriesToNetworkJson(entries)
@@ -237,10 +238,10 @@ export const taskless = (
       networkPayload &&
       Object.keys(networkPayload).length > 0
     ) {
-      logger.debug(
+      logger.trace(
         `Flushing telemetry data to Taskless (batch size: ${Object.keys(networkPayload).length})`
       );
-      logger.debug(JSON.stringify(networkPayload, null, 2));
+
       try {
         await client["/{version}/events"].post({
           json: networkPayload,
@@ -259,7 +260,7 @@ export const taskless = (
    */
   const flushSync = () => {
     const entries = pending.splice(0, pending.length);
-    logger.debug(`Flushing (sync) ${entries.length} entries`);
+    logger.trace(`Flushing (sync) ${entries.length} entries`);
     if (entries.length === 0) {
       return;
     }
@@ -276,7 +277,7 @@ export const taskless = (
       // worker setup
       const notifyHandle = new Int32Array(new SharedArrayBuffer(4));
 
-      logger.debug("Spawning worker");
+      logger.trace("Spawning worker");
 
       const w = new Worker(workerCode, {
         eval: true,
@@ -296,7 +297,7 @@ export const taskless = (
         },
       });
       // wait for notify
-      logger.debug("Wait for notify");
+      logger.trace("Wait for notify");
       Atomics.wait(notifyHandle, 0, 0);
       w.terminate();
     }
@@ -337,11 +338,9 @@ export const taskless = (
    * Using a promise keeps taskless() synchronous for JS loaders and avoid
    * race conditions.
    */
-  const promisedConfig = (async () => {
+  const promisedConfig: Promise<Config | undefined> = (async () => {
     if (!secret) {
-      return yaml.load(defaultConfig, {
-        schema: yaml.FAILSAFE_SCHEMA,
-      }) as Config;
+      return undefined;
     }
 
     const response = await client["/{version}/config"].get({
@@ -382,24 +381,27 @@ export const taskless = (
 
     // copy packs from the config
     const config = await promisedConfig;
-    for (const pack of config.packs ?? []) {
-      packs.unshift(pack);
+
+    if (config) {
+      for (const pack of config.packs ?? []) {
+        packs.unshift(pack);
+      }
     }
 
     // start the drain
     startDrain();
-    logger.debug("Drain started");
+    logger.trace("Drain started");
 
     // unblock http mock, letting requests through
     setLoaded(true);
-    logger.debug("Unblocking HTTP wrapper");
+    logger.trace("Unblocking HTTP wrapper");
 
     // attach cleanup to process exit
     process.on("exit", cleanup);
   };
 
   const cleanup = () => {
-    logger.debug("Performing cleanup");
+    logger.trace("Performing cleanup");
     // disable queue timer
     clearTimeout(timer);
   };
@@ -462,6 +464,16 @@ export const taskless = (
       packs.push(...loadedConfig.packs);
     },
 
+    addDefaultPacks() {
+      const config = yaml.load(defaultConfig, {
+        schema: yaml.FAILSAFE_SCHEMA,
+      }) as Config;
+
+      for (const pack of config.packs) {
+        packs.push(pack);
+      }
+    },
+
     /** get the current logger */
     logger,
 
@@ -503,6 +515,7 @@ export const autoload = (secret?: string, options?: InitOptions) => {
   const t = taskless(secret, options);
   t.logger.debug("Initialized Taskless");
   try {
+    t.addDefaultPacks();
     t.load()
       .then(() => {
         t.logger.debug("Taskless Autoloader ran successfully");
