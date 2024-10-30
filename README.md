@@ -1,6 +1,14 @@
 # @taskless/loader
 
-Take control of your third party APIs
+Take control of your third-party API dependencies with deep, context-aware observability. The Taskless loader provides comprehensive monitoring and telemetry for your external service calls, capturing everything from basic HTTP metrics to service-specific error details that traditional APM tools miss.
+
+Out of the box, you get:
+- Zero-config request & response monitoring
+- Service-aware error detection beyond HTTP status codes
+- Automatic correlation of API failures and root causes
+- Local NDJSON logging that works with your existing tools
+
+Running in local mode requires no account or API key - just install and go.
 
 # Getting Started
 
