@@ -1,5 +1,11 @@
 # @taskless/loader
 
+## 0.0.20
+
+### Patch Changes
+
+- 2a864fc: Optimizes local log output to individual requests
+
 ## 0.0.19
 
 ### Patch Changes
