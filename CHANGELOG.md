@@ -1,5 +1,13 @@
 # @taskless/loader
 
+## 0.0.19
+
+### Patch Changes
+
+- 7a4a5a3: Fixes issue where types were not available in taskless/core
+- 8d3036a: Introduces packCheck, a developer tool for validating your Lua packs confirm to the Taskless specification
+- 8d3036a: BREAKING: Default packs must be opted-in via the programatic API. This change was introduced so that in local programatic development (and when running "packCheck") you are not forced to adopt the default packages. In the autoloading path, the call to addDefaultPacks happens automatically.
+
 ## 0.0.18
 
 ### Patch Changes
