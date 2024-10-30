@@ -9,10 +9,11 @@
     "esModuleInterop": true,
 
     "alwaysStrict": false,
-    "declaration": false,
+    "declaration": true,
+    "declarationMap": true,
     "downlevelIteration": true,
 
-    "importHelpers": false, // strongly ensure no tslib dependency
+    "importHelpers": false,
     "inlineSources": true,
 
     "noFallthroughCasesInSwitch": true,
@@ -27,13 +28,11 @@
 
     "resolveJsonModule": true,
 
-    // https://github.com/microsoft/TypeScript/issues/50175#issuecomment-1204986989
-    // "skipLibCheck": true,
     "sourceMap": true,
     "strictBindCallApply": false,
 
     "types": ["node", "vite/client"],
-    "allowJs": true, // for importing configs in tests
+    "allowJs": true,
     "lib": ["ES2021"],
 
     "paths": {
