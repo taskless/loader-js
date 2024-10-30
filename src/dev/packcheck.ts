@@ -8,6 +8,8 @@ import { setupServer } from "msw/node";
 type Fixture = {
   request: Request;
   response: Response;
+  /** Attach or inspect the packCheck lifecycle */
+  log?: (message: string) => void;
 };
 
 /**
@@ -24,9 +26,15 @@ export async function packCheck(
     );
   }
 
+  const log =
+    fixture.log ??
+    (() => {
+      /* noop */
+    });
+
   const msw = setupServer(
     http.all("*", async (info) => {
-      fixture.response.clone();
+      return fixture.response.clone();
     })
   );
   msw.listen();
@@ -37,11 +45,15 @@ export async function packCheck(
     network: false,
     logging: true,
     flushInterval: 0,
-    logLevel: "error",
+    logLevel: "debug",
     __experimental: {
       msw,
     },
     log: {
+      debug: log,
+      info: log,
+      warn: log,
+      error: log,
       data(message) {
         logs.push(JSON.parse(message) as ConsolePayload);
       },
@@ -52,6 +64,7 @@ export async function packCheck(
   await t.load();
 
   await fetch(fixture.request);
+
   await t.flush();
 
   msw.close();
@@ -69,6 +82,8 @@ export async function packCheck(
       grouped.set(log.requestId, { ...log });
     }
   }
+
+  log(`[packCheck] Merged ${logs.length} logs into ${grouped.size} logs`);
 
   const result = Array.from(grouped.values())[0] ?? {};
   return result;
