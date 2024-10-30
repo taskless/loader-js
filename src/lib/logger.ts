@@ -2,7 +2,10 @@ import { noop } from "@~/constants.js";
 import { type Logger } from "@~/types.js";
 
 /** Default logger, passes strings into console */
-const defaultLogger: Logger = {
+const defaultLogger: Required<Logger> = {
+  trace(messsage: string) {
+    console.trace(messsage);
+  },
   debug(messsage: string) {
     console.debug(messsage);
   },
@@ -23,8 +26,9 @@ const defaultLogger: Logger = {
 export const createLogger = (
   userLogLevel?: keyof Logger,
   userLogger?: Partial<Logger>
-): Logger => {
+): Required<Logger> => {
   const logLevels: Record<keyof Logger, number> = {
+    trace: 10,
     debug: 20,
     info: 30,
     warn: 40,
@@ -35,6 +39,10 @@ export const createLogger = (
   const logLevel = logLevels[userLogLevel ?? "info"];
 
   return {
+    trace:
+      logLevel <= logLevels.trace
+        ? userLogger?.trace ?? defaultLogger.trace
+        : noop,
     debug:
       logLevel <= logLevels.debug
         ? userLogger?.debug ?? defaultLogger.debug

@@ -2,35 +2,39 @@ import { defineConfig, Plugin } from "vite";
 import { externalizeDeps } from "vite-plugin-externalize-deps";
 import tsconfigPaths from "vite-tsconfig-paths";
 import dts from "vite-plugin-dts";
+import path from "node:path";
 
-const ENTRY_POINTS = {
-  index: "./src/index.ts",
-  core: "./src/core.ts",
-  "dev/packcheck": "./src/dev/packcheck.ts",
-};
+import tsconfigJson from "./tsconfig.json";
+
+const entryPoints = [
+  "./src/index.ts",
+  "./src/core.ts",
+  "./src/dev/packcheck.ts",
+];
 
 export default defineConfig({
   plugins: [
     tsconfigPaths(),
     externalizeDeps(),
     dts({
-      include: ["src/**/*"],
+      include: "src/**",
     }),
   ],
   test: {
     testTimeout: 5000,
   },
+  resolve: { alias: { "@~/": path.resolve("src/") } },
   build: {
     outDir: "dist",
     emptyOutDir: true,
     sourcemap: true,
+    target: tsconfigJson.compilerOptions.target,
     lib: {
-      entry: ENTRY_POINTS.index, // overwritten by rollup options
+      entry: entryPoints,
       fileName: "[name]",
       formats: ["cjs", "es"],
     },
     rollupOptions: {
-      input: ENTRY_POINTS,
       output: {
         preserveModules: true,
       },
