@@ -35,7 +35,7 @@ describe("Taskless environment and importing (requires build)", () => {
     const { stdout, stderr } = await execa({
       preferLocal: true,
       env: {
-        TASKLESS_LOG_LEVEL: "debug",
+        TASKLESS_LOG_LEVEL: "trace",
       },
       cwd: resolve(dirname(fileURLToPath(import.meta.url)), "../"),
     })`node --import=./dist/index.js test/fixtures/end.js`;
@@ -70,7 +70,7 @@ describe("Taskless environment and importing (requires build)", () => {
     const { stdout, stderr } = await execa({
       preferLocal: true,
       env: {
-        TASKLESS_LOG_LEVEL: "debug",
+        TASKLESS_LOG_LEVEL: "trace",
         TASKLESS_API_KEY: "test",
         TASKLESS_OPTIONS,
       },
@@ -79,8 +79,8 @@ describe("Taskless environment and importing (requires build)", () => {
 
     expect(stdout).toMatch(/initialized taskless/i);
     expect(stdout).toMatch(/taskless autoloader ran successfully/i);
-    expect(stdout).toMatch(/performing cleanup/i);
-    // console.log(stdout);
+    expect(stdout).toMatch(/shutting down taskless/i);
+
     expect(eventListener, "Mock event server was called").toBeCalledTimes(1);
   });
 
@@ -88,7 +88,7 @@ describe("Taskless environment and importing (requires build)", () => {
     const { stdout, stderr } = await execa({
       preferLocal: true,
       env: {
-        TASKLESS_LOG_LEVEL: "debug",
+        TASKLESS_LOG_LEVEL: "trace",
         TASKLESS_OPTIONS: "network=false;logging=false",
       },
       cwd: resolve(dirname(fileURLToPath(import.meta.url)), "../"),

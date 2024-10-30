@@ -395,15 +395,6 @@ export const taskless = (
     // unblock http mock, letting requests through
     setLoaded(true);
     logger.trace("Unblocking HTTP wrapper");
-
-    // attach cleanup to process exit
-    process.on("exit", cleanup);
-  };
-
-  const cleanup = () => {
-    logger.trace("Performing cleanup");
-    // disable queue timer
-    clearTimeout(timer);
   };
 
   /**
@@ -515,7 +506,10 @@ export const autoload = (secret?: string, options?: InitOptions) => {
   const t = taskless(secret, options);
   t.logger.debug("Initialized Taskless");
   try {
-    t.addDefaultPacks();
+    if (!secret) {
+      t.addDefaultPacks();
+    }
+
     t.load()
       .then(() => {
         t.logger.debug("Taskless Autoloader ran successfully");

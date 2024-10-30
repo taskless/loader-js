@@ -148,20 +148,10 @@ export default {
                           },
                           "hooks": {
                             "type": "object",
-                            "properties": {
-                              "pre": {
-                                "description": "The hook script, written in lua",
-                                "type": "string"
-                              },
-                              "post": {
-                                "description": "The hook script, written in lua",
-                                "type": "string"
-                              }
-                            },
-                            "required": [
-                              "pre",
-                              "post"
-                            ]
+                            "additionalProperties": {
+                              "description": "The hook script, written in lua",
+                              "type": "string"
+                            }
                           },
                           "displays": {
                             "description": "A set of pre-configured graphs or display modules available in this pack",

@@ -9,13 +9,13 @@ export function isDefined<T>(value: T): value is NonNullable<T> {
 export function isLogLevel(value: unknown): value is LogLevel {
   return (
     typeof value === "string" &&
-    ["debug", "info", "warn", "error"].includes(value)
+    ["trace", "debug", "info", "warn", "error"].includes(value)
   );
 }
 
 export type MaybePromise<T> = T | Promise<T>;
 
-type LogLevel = "debug" | "info" | "warn" | "error";
+type LogLevel = "trace" | "debug" | "info" | "warn" | "error";
 
 export type Logger = {
   trace?: (message: string) => void;

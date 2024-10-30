@@ -9,7 +9,8 @@ packs:
       logging found in APM-like solutions, and is a solid baseline for any
       observability stack.
     permissions:
-      domains: null
+      domains:
+        - .+
       capture:
         durationMs:
           type: number
@@ -28,10 +29,37 @@ packs:
           description: The path of the request in the form of '/path/to/resource'
     hooks:
       pre: |
-        context.set("domain", request.domain)
-        context.set("url", request.url)
-        context.set("path", request.path)
+        capture("domain", request.domain)
+        capture("url", request.url)
+        capture("path", request.path)
         context.set("start", now())
       post: |
-        taskless.capture("durationMs", now() - context.get("start"))
-        taskless.capture("status", response.getStatus())
+        capture("durationMs", now() - context.get("start"))
+        capture("status", response.status)
+  - schema: 2
+    name: '@taskless/observe'
+    version: 1.0.0
+    description: |
+      Taskless observability
+    permissions:
+      domains:
+        - .+
+      response:
+        - body
+      capture:
+        error:
+          type: string
+          description: >-
+            In the event of errors, this contains the error message from common
+            expected payload locations
+    hooks:
+      post: |
+        local code = response.status
+        local msg = get(response.body, "error") or
+                    get(response.body, "message") or
+                    get(response.body, "err", "type") or
+                    nil
+
+        if code >= 400 and msg then
+          capture("error", msg)
+        end
