@@ -69,24 +69,7 @@ export async function packCheck(
 
   msw.close();
 
-  // merge any logs that share a request id into a single output
-  const grouped = new Map<string, ConsolePayload>();
-
-  for (const log of logs) {
-    if (grouped.has(log.requestId)) {
-      const existingLog = grouped.get(log.requestId)!;
-      existingLog.sequenceIds.push(...log.sequenceIds);
-      existingLog.dimensions.push(...log.dimensions);
-      grouped.set(log.requestId, existingLog);
-    } else {
-      grouped.set(log.requestId, { ...log });
-    }
-  }
-
-  log(`[packCheck] Merged ${logs.length} logs into ${grouped.size} logs`);
-
-  const result = Array.from(grouped.values())[0] ?? {};
-  return result;
+  return logs[0];
 }
 
 export { type ConsolePayload } from "@~/types.js";

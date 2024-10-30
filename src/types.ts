@@ -133,8 +133,6 @@ export type NetworkPayload = NonNullable<
 export type ConsolePayload = {
   /** The request ID. Can be used on the backend to merge related logs from a request */
   requestId: string;
-  /** The sequenceIDs connected to this log entry */
-  sequenceIds: string[];
   /** The dimension name & value that are recorded */
   dimensions: Array<{
     name: string;

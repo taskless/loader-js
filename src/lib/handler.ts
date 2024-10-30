@@ -1,5 +1,7 @@
 import { createSandbox, type Options } from "@~/lua/sandbox.js";
 import {
+  type CaptureItem,
+  type ConsolePayload,
   type CaptureCallback,
   type HookName,
   type Logger,
@@ -18,12 +20,14 @@ export const createHandler = ({
   loaded,
   factory,
   logger,
+  useLogging,
   capture,
   getPacks,
 }: {
   loaded: Promise<boolean>;
   factory: LuaFactory;
   logger: Logger;
+  useLogging: boolean;
   capture: CaptureCallback;
   getPacks: () => Promise<Pack[]>;
 }) =>
@@ -59,6 +63,11 @@ export const createHandler = ({
 
     const cleanup: Array<() => Promise<void>> = [];
 
+    const logItem: ConsolePayload = {
+      requestId,
+      dimensions: [],
+    };
+
     // create our engine for any matching packs
     for (const pack of packs) {
       // skip packs without hooks
@@ -90,7 +99,13 @@ export const createHandler = ({
         permissions: pack.permissions,
         request: info.request,
         capture: {
-          callback: capture,
+          callback(entry: Omit<CaptureItem, "sequenceId">) {
+            capture(entry);
+            logItem.dimensions.push({
+              name: entry.dimension,
+              value: entry.value,
+            });
+          },
         },
         context: new Map(),
       };
@@ -163,6 +178,10 @@ export const createHandler = ({
 
     // cleanup
     await Promise.allSettled(cleanup.map(async (step) => step()));
+
+    if (useLogging) {
+      logger.data(JSON.stringify(logItem));
+    }
 
     return fetchResponse as StrictResponse<any>;
   });

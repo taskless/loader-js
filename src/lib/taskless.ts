@@ -194,33 +194,6 @@ export const taskless = (
     return networkPayload;
   };
 
-  /** Sends a set of entries to the registered logging function */
-  const logEntries = (entries: CaptureItem[]) => {
-    // group all entries by their request id
-    const grouped = new Map<string, ConsolePayload>();
-
-    // convert entries to the grouped structure
-    for (const entry of entries) {
-      const group = grouped.get(entry.requestId) ?? {
-        requestId: entry.requestId,
-        sequenceIds: [],
-        dimensions: [],
-      };
-
-      group.sequenceIds.push(entry.sequenceId);
-      group.dimensions.push({
-        name: entry.dimension,
-        value: entry.value,
-      });
-
-      grouped.set(entry.requestId, group);
-    }
-
-    for (const [_id, line] of grouped.entries()) {
-      logger.data(JSON.stringify(line));
-    }
-  };
-
   /** Flush all pending telemetry asynchronously */
   const flush = async () => {
     logger.trace("Flushing telemetry data");
@@ -228,10 +201,6 @@ export const taskless = (
     const networkPayload = useNetwork
       ? entriesToNetworkJson(entries)
       : undefined;
-
-    if (useLogging) {
-      logEntries(entries);
-    }
 
     if (
       useNetwork &&
@@ -300,10 +269,6 @@ export const taskless = (
       logger.trace("Wait for notify");
       Atomics.wait(notifyHandle, 0, 0);
       w.terminate();
-    }
-
-    if (useLogging) {
-      logEntries(entries);
     }
   };
 
@@ -417,6 +382,7 @@ export const taskless = (
     loaded,
     factory,
     logger,
+    useLogging,
     capture,
     getPacks: async () => packs,
   });
