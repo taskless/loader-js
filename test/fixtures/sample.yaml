@@ -7,7 +7,7 @@ description: >
 permissions:
   domains:
     - ".*" # All domains
-  captures:
+  capture:
     testData:
       type: string
       description: Test data

@@ -7,7 +7,7 @@ export type Options = {
   permissions: {
     request?: string[];
     response?: string[];
-    captures?: Record<
+    capture?: Record<
       string,
       {
         type: string;
@@ -26,7 +26,7 @@ export type Options = {
 
 export const createSandbox = async (requestId: string, options: Options) => {
   const { logger } = options;
-  const captureKeys = Object.keys(options.permissions?.captures ?? {});
+  const captureKeys = Object.keys(options.permissions?.capture ?? {});
   const requestKeys = options.permissions?.request ?? [];
   const responseKeys =
     (options.response ? options.permissions?.response : undefined) ?? [];
@@ -35,20 +35,17 @@ export const createSandbox = async (requestId: string, options: Options) => {
   // log utility
   function log(message: string): void;
   function log(
-    level: "debug" | "info" | "warn" | "error",
+    level: "trace" | "debug" | "info" | "warn" | "error",
     message?: string
   ): void;
   function log(...args: any[]): void {
     const [level, message] =
-      args.length === 1 ? ["info", `${args[1]}`] : [`${args[1]}`, `${args[2]}`];
-    if (
-      level in logger &&
-      typeof logger[level as keyof typeof logger] === "function"
-    ) {
-      logger[level as keyof typeof logger](message);
-    }
+      args.length === 1 ? ["info", `${args[0]}`] : [`${args[0]}`, `${args[1]}`];
 
-    logger.info(message);
+    const logFunction = logger[level as keyof typeof logger];
+    if (logFunction) {
+      logFunction(`[${requestId}] ${message}`);
+    }
   }
 
   const extractBody = async (httpObject: Request | Response) => {

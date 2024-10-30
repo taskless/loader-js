@@ -18,6 +18,7 @@ export type MaybePromise<T> = T | Promise<T>;
 type LogLevel = "debug" | "info" | "warn" | "error";
 
 export type Logger = {
+  trace?: (message: string) => void;
   debug: (message: string) => void;
   info: (message: string) => void;
   warn: (message: string) => void;
@@ -65,6 +66,7 @@ export type InitOptions = {
 export type TasklessAPI = {
   logger: Logger;
   add(pack: string | Pack): void;
+  addDefaultPacks(): void;
   flush(): Promise<void>;
   flushSync(): void;
   load(): Promise<{
