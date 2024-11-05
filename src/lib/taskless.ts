@@ -24,12 +24,14 @@ import { createClient, type NormalizeOAS } from "fets";
 import yaml from "js-yaml";
 import { setupServer } from "msw/node";
 import { LuaFactory } from "wasmoon";
-import defaultConfig from "../__generated__/config.yaml?raw";
+import defaultConfig from "../__generated__/alt.yaml?raw";
 import { InitializationError } from "./error.js";
 import { createHandler } from "./handler.js";
 import { id } from "./id.js";
 import { createLogger } from "./logger.js";
 import type openapi from "../__generated__/openapi.js";
+import createPlugin, { Plugin } from "@extism/extism";
+import { base64ToUint8Array } from "uint8array-extras";
 
 // our on-demand worker code for a synchronous flush
 const workerCode = /* js */ `
@@ -272,7 +274,12 @@ export const taskless = (
     }
   };
 
+  let exiting = false;
   const exitHandler = () => {
+    if (exiting) {
+      return;
+    }
+    exiting = true;
     logger.debug("Shutting down Taskless");
     stopDrain();
     flushSync();
@@ -294,6 +301,9 @@ export const taskless = (
 
   /** Packs are added programatically or during the init step */
   const packs: Pack[] = [];
+
+  /** WASM modules are added programatically or during the init step */
+  const modules: Record<string, Promise<Plugin>> = {};
 
   /** Initialization flag, ensures we passed through init */
   let initialized = false;
@@ -377,14 +387,39 @@ export const taskless = (
     });
   };
 
+  let moduleCache: Promise<Record<string, Plugin>> | undefined;
+
   // create the msw interceptor
   const handler = createHandler({
     loaded,
-    factory,
     logger,
     useLogging,
     capture,
     getPacks: async () => packs,
+    getModules: async () => {
+      if (moduleCache) {
+        return moduleCache;
+      }
+
+      moduleCache = (async () => {
+        const results: Record<string, Plugin> = {};
+        const index = Object.entries(modules);
+        const plugins = await Promise.all(index.map((v) => v[1]));
+        for (let i = 0; i < index.length; i++) {
+          results[index[i][0]] = plugins[i];
+        }
+
+        return results;
+      })();
+
+      try {
+        await moduleCache;
+      } catch (e) {
+        console.error(e);
+      }
+
+      return moduleCache;
+    },
   });
 
   /** MSW instance: If one is programatically provided, use that instead */
@@ -421,13 +456,24 @@ export const taskless = (
       packs.push(...loadedConfig.packs);
     },
 
-    addDefaultPacks() {
+    async addDefaultPacks() {
       const config = yaml.load(defaultConfig, {
         schema: yaml.FAILSAFE_SCHEMA,
-      }) as Config;
+      }) as Config & { modules: Record<string, string> };
 
       for (const pack of config.packs) {
         packs.push(pack);
+      }
+
+      for (const [name, wasm] of Object.entries(config.modules)) {
+        modules[name] = createPlugin(
+          {
+            wasm: [{ data: base64ToUint8Array(wasm) }],
+          },
+          {
+            useWasi: true,
+          }
+        );
       }
     },
 

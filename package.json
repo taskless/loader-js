@@ -46,6 +46,7 @@
     "package.json"
   ],
   "dependencies": {
+    "@extism/extism": "2.0.0-rc9",
     "fets": "^0.8.2",
     "js-yaml": "^4.1.0",
     "msw": "^2.3.5",
