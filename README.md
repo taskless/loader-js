@@ -3,6 +3,7 @@
 Take control of your third-party API dependencies with deep, context-aware observability. The Taskless loader provides comprehensive monitoring and telemetry for your external service calls, capturing everything from basic HTTP metrics to service-specific error details that traditional APM tools miss.
 
 Out of the box, you get:
+
 - Zero-config request & response monitoring
 - Service-aware error detection beyond HTTP status codes
 - Automatic correlation of API failures and root causes
@@ -47,6 +48,10 @@ TASKLESS_API_KEY="your api key" node --import="@taskless/loader" start.js
 ## Programatic API
 
 A programatic API is available by importing `taskless` from `@taskless/loader/core`. It's signature is `taskless(secret: string, options: Options):API`. We encourage you to explore the TypeScript types to see what's available.
+
+# Writing Taskless Plugins
+
+(coming soon)
 
 # License
 
