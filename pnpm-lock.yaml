@@ -14,9 +14,6 @@ importers:
       fets:
         specifier: ^0.8.2
         version: 0.8.2
-      js-yaml:
-        specifier: ^4.1.0
-        version: 4.1.0
       msw:
         specifier: ^2.3.5
         version: 2.3.5(typescript@5.4.5)
@@ -29,9 +26,9 @@ importers:
       uuid:
         specifier: ^10.0.0
         version: 10.0.0
-      wasmoon:
-        specifier: ^1.16.0
-        version: 1.16.0
+      yaml:
+        specifier: ^2.6.0
+        version: 2.6.0
     devDependencies:
       '@changesets/cli':
         specifier: ^2.27.7
@@ -45,9 +42,6 @@ importers:
       '@hono/node-server':
         specifier: ^1.13.1
         version: 1.13.1(hono@4.6.3)
-      '@types/js-yaml':
-        specifier: ^4.0.9
-        version: 4.0.9
       '@types/node':
         specifier: ^20.12.12
         version: 20.12.12
@@ -684,9 +678,6 @@ packages:
   '@types/cookie@0.6.0':
     resolution: {integrity: sha512-4Kh9a6B2bQciAhf7FSuMRRkUWecJgJu9nPnx3yzpsfXX/c50REIqpHY4C82bXP90qrLtXtkDxTZosYO3UpOwlA==}
 
-  '@types/emscripten@1.39.10':
-    resolution: {integrity: sha512-TB/6hBkYQJxsZHSqyeuO1Jt0AB/bW6G7rHt9g7lML7SOF6lbgcHvw/Lr+69iqN0qxgXLhWKScAon73JNnptuDw==}
-
   '@types/eslint-scope@3.7.7':
     resolution: {integrity: sha512-MzMFlSLBqNF2gcHWO0G1vP/YQyfvrxZ0bF+u7mzUdZ1/xK4A4sru+nraZz5i3iEIk1l1uyicaDVTB4QbbEkAYg==}
 
@@ -695,9 +686,6 @@ packages:
 
   '@types/estree@1.0.5':
     resolution: {integrity: sha512-/kYRxGDLWzHOB7q+wtSUQlFrtcdUccpfy+X+9iMBpHK8QLLhx2wIPYuS5DYtR9Wa/YlZAbIovy7qVdB1Aq6Lyw==}
-
-  '@types/js-yaml@4.0.9':
-    resolution: {integrity: sha512-k4MGaQl5TGo/iipqb2UDG2UwjXziSWkh0uysQelTlJpX1qGlpUZYm8PnO4DxG1qBomtJUdYJ6qR6xdIah10JLg==}
 
   '@types/json-schema@7.0.15':
     resolution: {integrity: sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA==}
@@ -3450,10 +3438,6 @@ packages:
     peerDependencies:
       typescript: '>=5.0.0'
 
-  wasmoon@1.16.0:
-    resolution: {integrity: sha512-FlRLb15WwAOz1A9OQDbf6oOKKSiefi5VK0ZRF2wgH9xk3o5SnU11tNPaOnQuAh1Ucr66cwwvVXaeVRaFdRBt5g==}
-    hasBin: true
-
   watchpack@2.4.1:
     resolution: {integrity: sha512-8wrBCMtVhqcXP2Sup1ctSkga6uc2Bx0IIvKyT7yTFier5AXHooSI+QyQQAtTb7+E0IUCCKyTFmXqdqgum2XWGg==}
     engines: {node: '>=10.13.0'}
@@ -3538,6 +3522,11 @@ packages:
 
   yaml@2.4.2:
     resolution: {integrity: sha512-B3VqDZ+JAg1nZpaEmWtTXUlBneoGx6CPM9b0TENK6aoSu5t73dItudwdgmi6tHlIZZId4dZ9skcAQ2UbcyAeVA==}
+    engines: {node: '>= 14'}
+    hasBin: true
+
+  yaml@2.6.0:
+    resolution: {integrity: sha512-a6ae//JvKDEra2kdi1qzCyrJW/WZCgFi8ydDV+eXExl95t+5R+ijnqHJbz9tmMh8FUjx3iv2fCQ4dclAQlO2UQ==}
     engines: {node: '>= 14'}
     hasBin: true
 
@@ -4251,8 +4240,6 @@ snapshots:
 
   '@types/cookie@0.6.0': {}
 
-  '@types/emscripten@1.39.10': {}
-
   '@types/eslint-scope@3.7.7':
     dependencies:
       '@types/eslint': 8.56.10
@@ -4264,8 +4251,6 @@ snapshots:
       '@types/json-schema': 7.0.15
 
   '@types/estree@1.0.5': {}
-
-  '@types/js-yaml@4.0.9': {}
 
   '@types/json-schema@7.0.15': {}
 
@@ -7158,10 +7143,6 @@ snapshots:
       semver: 7.6.3
       typescript: 5.4.5
 
-  wasmoon@1.16.0:
-    dependencies:
-      '@types/emscripten': 1.39.10
-
   watchpack@2.4.1:
     dependencies:
       glob-to-regexp: 0.4.1
@@ -7309,6 +7290,8 @@ snapshots:
   yallist@4.0.0: {}
 
   yaml@2.4.2: {}
+
+  yaml@2.6.0: {}
 
   yargs-parser@21.1.1: {}
 

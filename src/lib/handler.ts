@@ -1,75 +1,19 @@
+import { type Plugin } from "@extism/extism";
 import {
   type CaptureItem,
   type ConsolePayload,
   type CaptureCallback,
-  type HookName,
   type Logger,
   type Pack,
+  type PluginOutput,
 } from "@~/types.js";
 import { http, type StrictResponse } from "msw";
 import { id } from "./id.js";
-import { Plugin } from "@extism/extism";
+import { createSandbox, getModuleName } from "./sandbox.js";
 
 /** Checks if a request is bypassed */
 const isBypassed = (request: Request) => {
   return request.headers.get("x-tskl-bypass") === "1";
-};
-
-const createSandbox = async (
-  requestId: string,
-  pack: Pack,
-  info: {
-    request: Request;
-    response?: Response;
-    context: Record<string, string>;
-  }
-) => {
-  const extractBody = async (httpObject: Request | Response) => {
-    const body = await httpObject.clone().text();
-    try {
-      return JSON.parse(body) as unknown;
-    } catch {
-      return body;
-    }
-  };
-
-  const requestKeys = pack.permissions?.request ?? [];
-  const responseKeys: string[] = /*pack.permissions?.response ??*/ [];
-  const environmentKeys = pack.permissions?.environment ?? [];
-
-  const env: Record<string, string | undefined> = {};
-  for (const key of environmentKeys) {
-    // eslint-disable-next-line n/no-process-env
-    env[key] = process.env[key];
-  }
-
-  return {
-    requestId,
-    context: info.context,
-    request: {
-      url: info.request.url,
-      domain: new URL(info.request.url).hostname,
-      path: new URL(info.request.url).pathname,
-      headers: requestKeys.includes("headers")
-        ? Object.fromEntries(info.request.headers.entries())
-        : undefined,
-      body: requestKeys.includes("body")
-        ? await extractBody(info.request)
-        : undefined,
-    },
-    response: info.response
-      ? {
-          status: info.response.status,
-          headers: responseKeys.includes("headers")
-            ? Object.fromEntries(info.response.headers.entries())
-            : undefined,
-          body: responseKeys.includes("body")
-            ? await extractBody(info.response)
-            : undefined,
-        }
-      : undefined,
-    environment: env,
-  };
 };
 
 export const createHandler = ({
@@ -85,7 +29,7 @@ export const createHandler = ({
   useLogging: boolean;
   capture: CaptureCallback;
   getPacks: () => Promise<Pack[]>;
-  getModules: () => Promise<Record<string, Plugin>>;
+  getModules: () => Promise<Map<string, Promise<Plugin>>>;
 }) =>
   http.all("https://*", async (info) => {
     // wait for loaded to unblock (means the shim library has loaded)
@@ -105,10 +49,10 @@ export const createHandler = ({
     const packs = await getPacks();
     logger.debug(`[${requestId}] total ${packs.length} packs`);
     const plugins = await getModules();
-    logger.debug(`[${requestId}] total ${Object.keys(plugins).length} modules`);
+    logger.debug(`[${requestId}] total ${plugins.size} modules`);
 
     const use: Pack[] = [];
-    const context: Record<string, Record<string, string>> = {};
+    const context: Record<string, Record<string, any>> = {};
 
     for (const pack of packs) {
       // skip non-domain matches
@@ -133,10 +77,22 @@ export const createHandler = ({
 
     logger.debug(`[${requestId}] pre hooks (${use.length})`);
 
-    const preResult = await Promise.all(
+    const logItem: ConsolePayload = {
+      requestId,
+      dimensions: [],
+    };
+
+    await Promise.all(
       use.map(async (pack, index) => {
         try {
-          const plugin = plugins[pack.name];
+          const plugin = await plugins.get(getModuleName(pack));
+
+          if (!plugin) {
+            throw new Error(
+              `Plugin ${getModuleName(pack)} not found in modules`
+            );
+          }
+
           const output = await plugin.call(
             "pre",
             JSON.stringify(
@@ -146,10 +102,20 @@ export const createHandler = ({
               })
             )
           );
-          const result = output?.json() ?? {};
+          const result = (output?.json() ?? {}) as
+            | PluginOutput
+            | Record<string, undefined>;
 
-          if (result.capture) {
-            // todo
+          for (const [key, value] of Object.entries(result.capture ?? {})) {
+            capture({
+              requestId,
+              dimension: key,
+              value: `${value}`,
+            });
+            logItem.dimensions.push({
+              name: key,
+              value: `${value}`,
+            });
           }
 
           if (result.context) {
@@ -157,14 +123,13 @@ export const createHandler = ({
           }
 
           return result;
-        } catch (e) {
-          logger.error(`[${requestId}] ${e}`);
+        } catch (error) {
+          logger.error(`[${requestId}] ${error as any}`);
         }
+
         return {};
       })
     );
-
-    console.log(preResult);
 
     // Fetch
     logger.debug(`[${requestId}] sending request`);
@@ -174,11 +139,17 @@ export const createHandler = ({
 
     logger.debug(`[${requestId}] post hooks (${use.length})`);
 
-    const postResult = await Promise.all(
+    await Promise.all(
       use.reverse().map(async (pack, index) => {
         try {
-          console.log(context[`${use.length - index - 1}`]);
-          const plugin = plugins[pack.name];
+          const plugin = await plugins.get(getModuleName(pack))!;
+
+          if (!plugin) {
+            throw new Error(
+              `Plugin ${getModuleName(pack)} not found in modules`
+            );
+          }
+
           const output = await plugin.call(
             "post",
             JSON.stringify(
@@ -190,18 +161,35 @@ export const createHandler = ({
               })
             )
           );
-          return output?.json() ?? {};
-        } catch (e) {
-          logger.error(`[${requestId}] ${e}`);
+
+          const result = (output?.json() ?? {}) as
+            | PluginOutput
+            | Record<string, undefined>;
+
+          for (const [key, value] of Object.entries(result.capture ?? {})) {
+            capture({
+              requestId,
+              dimension: key,
+              value: `${value}`,
+            });
+            logItem.dimensions.push({
+              name: key,
+              value: `${value}`,
+            });
+          }
+
+          return result;
+        } catch (error) {
+          logger.error(`[${requestId}] ${error as any}`);
         }
+
+        return {};
       })
     );
 
-    console.log(postResult);
-
-    // if (useLogging) {
-    //   logger.data(JSON.stringify(logItem));
-    // }
+    if (useLogging) {
+      logger.data(JSON.stringify(logItem));
+    }
 
     return fetchResponse as StrictResponse<any>;
   });
