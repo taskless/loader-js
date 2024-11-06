@@ -15,7 +15,7 @@
     "prepare": "husky",
     "prettier": "prettier",
     "syncpack": "syncpack",
-    "test": "vitest",
+    "test": "NODE_OPTIONS='--no-warnings' vitest",
     "xo": "xo"
   },
   "type": "module",
