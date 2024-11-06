@@ -1,15 +1,13 @@
 import { type Plugin } from "@extism/extism";
 import {
-  type CaptureItem,
   type ConsolePayload,
   type CaptureCallback,
   type Logger,
   type Pack,
-  type PluginOutput,
 } from "@~/types.js";
 import { http, type StrictResponse } from "msw";
 import { id } from "./id.js";
-import { createSandbox, getModuleName } from "./sandbox.js";
+import { createSandbox, getModuleName, runSandbox } from "./sandbox.js";
 
 /** Checks if a request is bypassed */
 const isBypassed = (request: Request) => {
@@ -82,52 +80,37 @@ export const createHandler = ({
       dimensions: [],
     };
 
+    // PRE hook
     await Promise.all(
       use.map(async (pack, index) => {
-        try {
-          const plugin = await plugins.get(getModuleName(pack));
-
-          if (!plugin) {
-            throw new Error(
-              `Plugin ${getModuleName(pack)} not found in modules`
-            );
+        const result = await runSandbox(
+          await plugins.get(getModuleName(pack)),
+          "pre",
+          {
+            requestId,
+            sandbox: await createSandbox(requestId, pack, {
+              request: info.request,
+              context: context[`${index}`] ?? {},
+            }),
+            logger,
           }
+        );
 
-          const output = await plugin.call(
-            "pre",
-            JSON.stringify(
-              await createSandbox(requestId, pack, {
-                request: info.request,
-                context: context[`${index}`] ?? {},
-              })
-            )
-          );
-          const result = (output?.json() ?? {}) as
-            | PluginOutput
-            | Record<string, undefined>;
-
-          for (const [key, value] of Object.entries(result.capture ?? {})) {
-            capture({
-              requestId,
-              dimension: key,
-              value: `${value}`,
-            });
-            logItem.dimensions.push({
-              name: key,
-              value: `${value}`,
-            });
-          }
-
-          if (result.context) {
-            context[`${index}`] = result.context;
-          }
-
-          return result;
-        } catch (error) {
-          logger.error(`[${requestId}] ${error as any}`);
+        for (const [key, value] of Object.entries(result.capture ?? {})) {
+          capture({
+            requestId,
+            dimension: key,
+            value: `${value}`,
+          });
+          logItem.dimensions.push({
+            name: key,
+            value: `${value}`,
+          });
         }
 
-        return {};
+        if (result.context) {
+          context[`${index}`] = result.context;
+        }
       })
     );
 
@@ -139,51 +122,39 @@ export const createHandler = ({
 
     logger.debug(`[${requestId}] post hooks (${use.length})`);
 
+    // POST hook
     await Promise.all(
       use.reverse().map(async (pack, index) => {
-        try {
-          const plugin = await plugins.get(getModuleName(pack))!;
-
-          if (!plugin) {
-            throw new Error(
-              `Plugin ${getModuleName(pack)} not found in modules`
-            );
+        const result = await runSandbox(
+          await plugins.get(getModuleName(pack)),
+          "post",
+          {
+            requestId,
+            sandbox: await createSandbox(requestId, pack, {
+              request: info.request,
+              response: fetchResponse,
+              // context is at original (non-reversed) index
+              context: context[`${use.length - index - 1}`] ?? {},
+            }),
+            logger,
           }
+        );
 
-          const output = await plugin.call(
-            "post",
-            JSON.stringify(
-              await createSandbox(requestId, pack, {
-                request: info.request,
-                response: fetchResponse,
-                // context is at original (non-reversed) index
-                context: context[`${use.length - index - 1}`] ?? {},
-              })
-            )
-          );
-
-          const result = (output?.json() ?? {}) as
-            | PluginOutput
-            | Record<string, undefined>;
-
-          for (const [key, value] of Object.entries(result.capture ?? {})) {
-            capture({
-              requestId,
-              dimension: key,
-              value: `${value}`,
-            });
-            logItem.dimensions.push({
-              name: key,
-              value: `${value}`,
-            });
-          }
-
-          return result;
-        } catch (error) {
-          logger.error(`[${requestId}] ${error as any}`);
+        for (const [key, value] of Object.entries(result.capture ?? {})) {
+          capture({
+            requestId,
+            dimension: key,
+            value: `${value}`,
+          });
+          logItem.dimensions.push({
+            name: key,
+            value: `${value}`,
+          });
         }
 
-        return {};
+        if (result.context) {
+          context[`${index}`] = result.context;
+        }
       })
     );
 
