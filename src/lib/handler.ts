@@ -4,10 +4,11 @@ import {
   type CaptureCallback,
   type Logger,
   type Pack,
+  type PluginOutput,
 } from "@~/types.js";
 import { http, type StrictResponse } from "msw";
 import { id } from "./id.js";
-import { createSandbox, getModuleName, runSandbox } from "./sandbox.js";
+import { runSandbox } from "./sandbox.js";
 
 /** Checks if a request is bypassed */
 const isBypassed = (request: Request) => {
@@ -80,22 +81,12 @@ export const createHandler = ({
       dimensions: [],
     };
 
-    // PRE hook
-    await Promise.all(
-      use.map(async (pack, index) => {
-        const result = await runSandbox(
-          await plugins.get(getModuleName(pack)),
-          "pre",
-          {
-            requestId,
-            sandbox: await createSandbox(requestId, pack, {
-              request: info.request,
-              context: context[`${index}`] ?? {},
-            }),
-            logger,
-          }
-        );
-
+    const response = await runSandbox(requestId, info.request, use, {
+      async getModules() {
+        // get modules from parent scope
+        return getModules();
+      },
+      async onResult(result: PluginOutput) {
         for (const [key, value] of Object.entries(result.capture ?? {})) {
           capture({
             requestId,
@@ -107,60 +98,15 @@ export const createHandler = ({
             value: `${value}`,
           });
         }
-
-        if (result.context) {
-          context[`${index}`] = result.context;
-        }
-      })
-    );
-
-    // Fetch
-    logger.debug(`[${requestId}] sending request`);
-    const finalizedRequest = info.request;
-    finalizedRequest.headers.set("x-tskl-bypass", "1");
-    const fetchResponse = await fetch(finalizedRequest);
-
-    logger.debug(`[${requestId}] post hooks (${use.length})`);
-
-    // POST hook
-    await Promise.all(
-      use.reverse().map(async (pack, index) => {
-        const result = await runSandbox(
-          await plugins.get(getModuleName(pack)),
-          "post",
-          {
-            requestId,
-            sandbox: await createSandbox(requestId, pack, {
-              request: info.request,
-              response: fetchResponse,
-              // context is at original (non-reversed) index
-              context: context[`${use.length - index - 1}`] ?? {},
-            }),
-            logger,
-          }
-        );
-
-        for (const [key, value] of Object.entries(result.capture ?? {})) {
-          capture({
-            requestId,
-            dimension: key,
-            value: `${value}`,
-          });
-          logItem.dimensions.push({
-            name: key,
-            value: `${value}`,
-          });
-        }
-
-        if (result.context) {
-          context[`${index}`] = result.context;
-        }
-      })
-    );
+      },
+      onError(error: Error) {
+        logger.error(`[${requestId}] ${error.message}`);
+      },
+    });
 
     if (useLogging) {
       logger.data(JSON.stringify(logItem));
     }
 
-    return fetchResponse as StrictResponse<any>;
+    return response as StrictResponse<any>;
   });

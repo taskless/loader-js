@@ -2,11 +2,13 @@ import process from "node:process";
 import { type Plugin } from "@extism/extism";
 import { type PluginOutput, type Logger, type Pack } from "@~/types.js";
 
+/** Get a module's specific name by combining pack and version info */
 export const getModuleName = (pack: Pack) => {
   return `${pack.name} @ ${pack.version}`;
 };
 
-export const createSandbox = async (
+/** internal: creates a sandbox based on the pack's permissions */
+const createSandbox = async (
   requestId: string,
   pack: Pack,
   info: {
@@ -63,33 +65,103 @@ export const createSandbox = async (
   };
 };
 
+type getModulesCallback = () => Promise<Map<string, Promise<Plugin>>>;
+type onResultCallback = (result: NonNullable<PluginOutput>) => Promise<void>;
+type onErrorCallback = (error: any) => void;
+type Callbacks = {
+  getModules: getModulesCallback;
+  onResult: onResultCallback;
+  onError: onErrorCallback;
+};
+
+/**
+ * Run a sandbox with the given packs, returning the final response.
+ * This is where the wasm plugins are ran on either side of the request, and simplifies the
+ * handlers logic to focus on the mocking and not on the lifecycle
+ */
 export const runSandbox = async (
-  plugin: Plugin | undefined,
-  hook: "pre" | "post",
-  {
-    requestId,
-    sandbox,
-    logger,
-  }: {
-    requestId: string;
-    logger: Logger;
-    sandbox: Awaited<ReturnType<typeof createSandbox>>;
-  }
+  requestId: string,
+  request: Request,
+  packs: Pack[],
+  callbacks: Callbacks
 ) => {
-  try {
-    if (!plugin) {
-      throw new Error(`[${requestId}] Plugin not found in modules`);
+  const context: Record<string, Record<string, any>> = {};
+  const plugins = await callbacks.getModules();
+
+  // run packs forward
+  const preHooks = await Promise.allSettled(
+    packs.map(async (pack, index) => {
+      const plugin = await plugins.get(getModuleName(pack));
+      if (!plugin) {
+        throw new Error(`[${requestId}] Plugin not found in modules`);
+      }
+
+      const output = await plugin.call(
+        "pre",
+        JSON.stringify(
+          await createSandbox(requestId, pack, {
+            request,
+            context: context[`${index}`] ?? {},
+          })
+        )
+      );
+
+      const result = output?.json() as PluginOutput;
+
+      if (result.context) {
+        context[`${index}`] = result.context;
+      }
+
+      await callbacks.onResult(result);
+    })
+  );
+
+  for (const hook of preHooks) {
+    if (hook.status === "rejected") {
+      callbacks.onError(hook.reason);
     }
-
-    const output = await plugin.call(hook, JSON.stringify(sandbox));
-    const result = output?.json() as PluginOutput;
-
-    return result;
-  } catch (error) {
-    logger.error(
-      `[${requestId}] ${error instanceof Error ? error.message : "Unknown error"}`
-    );
   }
 
-  return {};
+  // run request
+  const finalizedRequest = request.clone();
+  finalizedRequest.headers.set("x-tskl-bypass", "1");
+  const fetchResponse = await fetch(finalizedRequest);
+
+  // run packs backwards
+  const postHooks = await Promise.allSettled(
+    packs.reverse().map(async (pack, index) => {
+      const plugin = await plugins.get(getModuleName(pack));
+      if (!plugin) {
+        throw new Error(`[${requestId}] Plugin not found in modules`);
+      }
+
+      const output = await plugin.call(
+        "post",
+        JSON.stringify(
+          await createSandbox(requestId, pack, {
+            request,
+            response: fetchResponse,
+            // context is at original (non-reversed) index
+            context: context[`${packs.length - index - 1}`] ?? {},
+          })
+        )
+      );
+
+      const result = output?.json() as PluginOutput;
+
+      if (result.context) {
+        context[`${index}`] = result.context;
+      }
+
+      await callbacks.onResult(result);
+    })
+  );
+
+  for (const hook of postHooks) {
+    if (hook.status === "rejected") {
+      callbacks.onError(hook.reason);
+    }
+  }
+
+  return fetchResponse;
 };
