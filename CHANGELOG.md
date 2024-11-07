@@ -1,5 +1,11 @@
 # @taskless/loader
 
+## 0.0.23
+
+### Patch Changes
+
+- abd7576: Adds latest wasm (AGFzb)
+
 ## 0.0.22
 
 ### Patch Changes
