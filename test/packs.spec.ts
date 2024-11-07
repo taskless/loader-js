@@ -7,25 +7,14 @@ import {
 import { http } from "msw";
 import { setupServer } from "msw/node";
 import { describe, test, vi } from "vitest";
-import sampleYaml from "./fixtures/sample.yaml?raw";
+import YAML from "yaml";
+import sampleYamlConfig from "../src/__generated__/config.yaml?raw";
 
-const mergeLogsByRequestId = (logs: ConsolePayload[]) => {
-  // merge any logs that share a request id into a single output
-  const grouped = new Map<string, ConsolePayload>();
-
-  for (const log of logs) {
-    if (grouped.has(log.requestId)) {
-      const existingLog = grouped.get(log.requestId)!;
-      existingLog.sequenceIds.push(...log.sequenceIds);
-      existingLog.dimensions.push(...log.dimensions);
-      grouped.set(log.requestId, existingLog);
-    } else {
-      grouped.set(log.requestId, { ...log });
-    }
-  }
-
-  return Array.from(grouped.values());
-};
+const cfg = YAML.parse(sampleYamlConfig) as Config;
+const sampleYaml = YAML.stringify({
+  ...cfg.packs[0],
+  module: cfg.modules?.[Object.keys(cfg.modules ?? {})[0]],
+});
 
 describe("Loading packs", () => {
   test("Can programatically add packs that intercept requests", async ({
@@ -116,8 +105,7 @@ describe("Loading packs", () => {
     // flush all pending data
     await t.flush();
 
-    const allLogs = mergeLogsByRequestId(logs);
-    const log = allLogs[0];
+    const log = logs[0];
 
     expect(
       log.dimensions.some((d) => d.name === "status" && d.value === "200"),

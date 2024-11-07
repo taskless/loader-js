@@ -3,11 +3,11 @@ import { serve } from "@hono/node-server";
 import { type Config } from "@~/types.js";
 import getPort from "get-port";
 import { Hono } from "hono";
-import jsYaml from "js-yaml";
+import YAML from "yaml";
 
-const defaultPack = jsYaml.load(
-  readFileSync("test/fixtures/sample.yaml", "utf8")
-);
+const cfg = YAML.parse(
+  readFileSync("src/__generated__config.yaml", "utf8")
+) as Config;
 
 const run = async () => {
   const app = new Hono();
@@ -17,11 +17,7 @@ const run = async () => {
 
   app.get("/v1/config", (c) => {
     console.log("config called");
-    return c.json({
-      schema: 1,
-      organizationId: "test",
-      packs: [defaultPack],
-    } as Config);
+    return c.json(cfg);
   });
 
   app.post("/v1/events", (c) => {

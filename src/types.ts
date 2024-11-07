@@ -83,8 +83,6 @@ export type Config = OASOutput<
 >;
 /** Describes a pack in the Config */
 export type Pack = Config["packs"][number];
-/** Creates a pick-list of valid hook types */
-export type HookName = keyof NonNullable<Pack["hooks"]>;
 /** Pack sends collection */
 export type Permissions = Pack["permissions"];
 
@@ -150,3 +148,28 @@ export type CaptureItem = {
 
 /** The capture callback does not include a sequence id by default. It is added later */
 export type CaptureCallback = (entry: Omit<CaptureItem, "sequenceId">) => void;
+
+export type PluginInput<
+  TContext = unknown,
+  TRequestBody = unknown,
+  TResponseBody = unknown,
+> = {
+  request: {
+    domain: string;
+    path: string;
+    url: string;
+    method: string;
+    body?: TRequestBody;
+  };
+  response?: {
+    status: number;
+    headers?: Array<[string, string]>;
+    body?: TResponseBody;
+  };
+  context: TContext;
+};
+
+export type PluginOutput<TContext = unknown> = {
+  capture?: Record<string, string | number>;
+  context?: TContext;
+};

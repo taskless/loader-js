@@ -66,7 +66,7 @@ export default {
                             "description": "The pack schema version used",
                             "type": "number",
                             "enum": [
-                              2
+                              3
                             ]
                           },
                           "name": {
@@ -81,76 +81,67 @@ export default {
                             "description": "The pack description",
                             "type": "string"
                           },
+                          "capture": {
+                            "description": "Describes the data this pack intends to capture",
+                            "type": "object",
+                            "additionalProperties": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "description": "The type of data to capture",
+                                  "anyOf": [
+                                    {
+                                      "const": "string",
+                                      "type": "string"
+                                    },
+                                    {
+                                      "const": "number",
+                                      "type": "string"
+                                    }
+                                  ]
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "description"
+                              ]
+                            }
+                          },
                           "permissions": {
                             "description": "The permissions requested for this pack",
                             "type": "object",
                             "properties": {
-                              "capture": {
-                                "type": "object",
-                                "additionalProperties": {
-                                  "type": "object",
-                                  "properties": {
-                                    "type": {
-                                      "description": "The type of data to capture",
-                                      "anyOf": [
-                                        {
-                                          "const": "string",
-                                          "type": "string"
-                                        },
-                                        {
-                                          "const": "number",
-                                          "type": "string"
-                                        }
-                                      ]
-                                    },
-                                    "description": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "required": [
-                                    "type",
-                                    "description"
-                                  ]
+                              "domains": {
+                                "description": "The domains this pack is allowed to request data from as regular expressions.",
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
                                 }
                               },
-                              "domains": {
-                                "description": "The domains this pack is allowed to request data from as regular expressions. A single null allows all domains",
-                                "anyOf": [
-                                  {
-                                    "type": "null"
-                                  },
-                                  {
-                                    "type": "string"
-                                  },
-                                  {
-                                    "type": "array",
-                                    "items": {
-                                      "type": "string"
-                                    }
-                                  }
-                                ]
-                              },
                               "environment": {
-                                "description": "The environment variables this pack is allowed to access from the host system",
+                                "description": "The environment variables this pack is allowed to access on the host system",
                                 "type": "array",
                                 "items": {
                                   "type": "string"
                                 }
                               },
                               "request": {
-                                "description": "During the lifecycle, additional domains this pack is allowed to request data from",
+                                "description": "During the lifecycle, request access to additional properties such as 'headers' and 'body'",
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "response": {
+                                "description": "During the lifecycle, response access to additional properties such as 'headers' and 'body'",
                                 "type": "array",
                                 "items": {
                                   "type": "string"
                                 }
                               }
-                            }
-                          },
-                          "hooks": {
-                            "type": "object",
-                            "additionalProperties": {
-                              "description": "The hook script, written in lua",
-                              "type": "string"
                             }
                           },
                           "displays": {
@@ -217,6 +208,10 @@ export default {
                                 "display"
                               ]
                             }
+                          },
+                          "module": {
+                            "description": "If this pack contains runtime code, this contains a base64 of the module's content. When packs are added to a config, modules are hoisted to reduce duplication.",
+                            "type": "string"
                           }
                         },
                         "required": [
@@ -224,6 +219,13 @@ export default {
                           "name",
                           "version"
                         ]
+                      }
+                    },
+                    "modules": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "description": "The module content",
+                        "type": "string"
                       }
                     }
                   },

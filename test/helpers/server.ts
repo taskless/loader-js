@@ -3,12 +3,13 @@ import { serve, type ServerType } from "@hono/node-server";
 import { type Config } from "@~/types.js";
 import getPort from "get-port";
 import { Hono } from "hono";
-import jsYaml from "js-yaml";
 import { afterEach, type test } from "vitest";
+import YAML from "yaml";
+import { getJSONConfig } from "./yamlGen.js";
 
-const defaultPack = jsYaml.load(
-  readFileSync("test/fixtures/sample.yaml", "utf8")
-);
+const cfg = YAML.parse(
+  readFileSync("src/__generated__/config.yaml", "utf8")
+) as Config;
 
 type HonoContext = {
   hono: {
@@ -49,11 +50,7 @@ export const withHono = <T extends typeof test>(t: T) => {
 
 export const defaultConfig = (app: Hono) => {
   app.get("/v1/config", (c) => {
-    return c.json({
-      schema: 1,
-      organizationId: "test",
-      packs: [defaultPack],
-    } as Config);
+    return c.json(getJSONConfig());
   });
 };
 

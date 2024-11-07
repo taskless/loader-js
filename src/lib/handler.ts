@@ -1,15 +1,14 @@
-import { createSandbox, type Options } from "@~/lua/sandbox.js";
+import { type Plugin } from "@extism/extism";
 import {
-  type CaptureItem,
   type ConsolePayload,
   type CaptureCallback,
-  type HookName,
   type Logger,
   type Pack,
+  type PluginOutput,
 } from "@~/types.js";
 import { http, type StrictResponse } from "msw";
-import { type LuaFactory, type LuaEngine } from "wasmoon";
 import { id } from "./id.js";
+import { runSandbox } from "./sandbox.js";
 
 /** Checks if a request is bypassed */
 const isBypassed = (request: Request) => {
@@ -18,18 +17,18 @@ const isBypassed = (request: Request) => {
 
 export const createHandler = ({
   loaded,
-  factory,
   logger,
   useLogging,
   capture,
   getPacks,
+  getModules,
 }: {
   loaded: Promise<boolean>;
-  factory: LuaFactory;
   logger: Logger;
   useLogging: boolean;
   capture: CaptureCallback;
   getPacks: () => Promise<Pack[]>;
+  getModules: () => Promise<Map<string, Promise<Plugin>>>;
 }) =>
   http.all("https://*", async (info) => {
     // wait for loaded to unblock (means the shim library has loaded)
@@ -47,34 +46,14 @@ export const createHandler = ({
     // find matching packs from the config based on a domain match
     // on match, start an async process that makes a lua engine and saves the pack info
     const packs = await getPacks();
-    logger.debug(`[${requestId}] scanning ${packs.length} packs`);
+    logger.debug(`[${requestId}] total ${packs.length} packs`);
+    const plugins = await getModules();
+    logger.debug(`[${requestId}] total ${plugins.size} modules`);
 
-    const hooks: Record<
-      HookName,
-      Array<{
-        engine: Promise<LuaEngine>;
-        options: Options;
-        code: string;
-      }>
-    > = {
-      pre: [],
-      post: [],
-    };
+    const use: Pack[] = [];
+    const context: Record<string, Record<string, any>> = {};
 
-    const cleanup: Array<() => Promise<void>> = [];
-
-    const logItem: ConsolePayload = {
-      requestId,
-      dimensions: [],
-    };
-
-    // create our engine for any matching packs
     for (const pack of packs) {
-      // skip packs without hooks
-      if (!pack.hooks) {
-        continue;
-      }
-
       // skip non-domain matches
       if (!pack.permissions?.domains) {
         continue;
@@ -92,96 +71,42 @@ export const createHandler = ({
         continue;
       }
 
-      // register hooks
-      const engine = factory.createEngine();
-      const coreOptions = {
-        logger,
-        permissions: pack.permissions,
-        request: info.request,
-        capture: {
-          callback(entry: Omit<CaptureItem, "sequenceId">) {
-            capture(entry);
-            logItem.dimensions.push({
-              name: entry.dimension,
-              value: entry.value,
-            });
-          },
-        },
-        context: new Map(),
-      };
-
-      if (pack.hooks.pre) {
-        hooks.pre.push({
-          engine,
-          options: coreOptions,
-          code: pack.hooks.pre,
-        });
-      }
-
-      if (pack.hooks.post) {
-        hooks.post.push({
-          engine,
-          options: coreOptions,
-          code: pack.hooks.post,
-        });
-      }
-
-      // add the cleanup task regardless
-      cleanup.push(async () => {
-        const lua = await engine;
-        lua.global.close();
-      });
+      use.push(pack);
     }
 
-    logger.debug(
-      `[${requestId}] pre (${hooks.pre.length}) / post (${hooks.post.length})`
-    );
+    logger.debug(`[${requestId}] pre hooks (${use.length})`);
 
-    logger.debug(`[${requestId}] pre hooks`);
+    const logItem: ConsolePayload = {
+      requestId,
+      dimensions: [],
+    };
 
-    // run pre
-    await Promise.all(
-      hooks.pre.map<Promise<void>>(async (hook) => {
-        const lua = await hook.engine;
-        const sandbox = await createSandbox(requestId, hook.options);
-        for (const [name, value] of Object.entries(sandbox.variables)) {
-          lua.global.set(name, value);
+    const response = await runSandbox(requestId, info.request, use, {
+      async getModules() {
+        // get modules from parent scope
+        return getModules();
+      },
+      async onResult(result: PluginOutput) {
+        for (const [key, value] of Object.entries(result.capture ?? {})) {
+          capture({
+            requestId,
+            dimension: key,
+            value: `${value}`,
+          });
+          logItem.dimensions.push({
+            name: key,
+            value: `${value}`,
+          });
         }
-
-        await lua.doString([...sandbox.headers, hook.code].join("\n"));
-      })
-    );
-
-    // Fetch
-    logger.debug(`[${requestId}] sending request`);
-    const finalizedRequest = info.request;
-    finalizedRequest.headers.set("x-tskl-bypass", "1");
-    const fetchResponse = await fetch(finalizedRequest);
-
-    logger.debug(`[${requestId}] post hooks`);
-
-    // run post
-    await Promise.all(
-      hooks.post.map<Promise<void>>(async (hook) => {
-        const lua = await hook.engine;
-        const sandbox = await createSandbox(requestId, {
-          ...hook.options,
-          response: fetchResponse,
-        });
-        for (const [name, value] of Object.entries(sandbox.variables)) {
-          lua.global.set(name, value);
-        }
-
-        await lua.doString([...sandbox.headers, hook.code].join("\n"));
-      })
-    );
-
-    // cleanup
-    await Promise.allSettled(cleanup.map(async (step) => step()));
+      },
+      onError(error: Error) {
+        logger.error(`[${requestId}] ${error.message}`);
+      },
+    });
 
     if (useLogging) {
       logger.data(JSON.stringify(logItem));
     }
 
-    return fetchResponse as StrictResponse<any>;
+    return response as StrictResponse<any>;
   });

@@ -1,5 +1,6 @@
 import process, { exit } from "node:process";
 import { Worker, MessageChannel } from "node:worker_threads";
+import { createPlugin, type Plugin } from "@extism/extism";
 import {
   bypass,
   DEFAULT_FLUSH_INTERVAL,
@@ -21,14 +22,15 @@ import {
   type ConsolePayload,
 } from "@~/types.js";
 import { createClient, type NormalizeOAS } from "fets";
-import yaml from "js-yaml";
 import { setupServer } from "msw/node";
-import { LuaFactory } from "wasmoon";
+import { base64ToUint8Array } from "uint8array-extras";
+import YAML from "yaml";
 import defaultConfig from "../__generated__/config.yaml?raw";
 import { InitializationError } from "./error.js";
 import { createHandler } from "./handler.js";
 import { id } from "./id.js";
 import { createLogger } from "./logger.js";
+import { getModuleName } from "./sandbox.js";
 import type openapi from "../__generated__/openapi.js";
 
 // our on-demand worker code for a synchronous flush
@@ -112,7 +114,7 @@ export const taskless = (
   let timer: NodeJS.Timeout;
 
   logger.debug(
-    yaml.dump({
+    YAML.stringify({
       resolved: {
         useNetwork,
         useLogging,
@@ -272,7 +274,13 @@ export const taskless = (
     }
   };
 
+  let exiting = false;
   const exitHandler = () => {
+    if (exiting) {
+      return;
+    }
+
+    exiting = true;
     logger.debug("Shutting down Taskless");
     stopDrain();
     flushSync();
@@ -289,11 +297,13 @@ export const taskless = (
     process.on(event, exitHandler);
   }
 
-  /** A lua factory for creating WASM VMs */
-  const factory = new LuaFactory();
-
   /** Packs are added programatically or during the init step */
   const packs: Pack[] = [];
+
+  const moduleSource = new Map<string, ArrayBuffer>();
+
+  /** WASM modules are added programatically or during the init step */
+  const modules = new Map<string, Promise<Plugin>>();
 
   /** Initialization flag, ensures we passed through init */
   let initialized = false;
@@ -351,6 +361,24 @@ export const taskless = (
       for (const pack of config.packs ?? []) {
         packs.unshift(pack);
       }
+
+      for (const [name, code] of Object.entries(config.modules ?? {})) {
+        moduleSource.set(name, base64ToUint8Array(code));
+      }
+    }
+
+    // start initializing wasm modules early
+    for (const [name, source] of moduleSource.entries()) {
+      logger.debug(`initializing wasm for pack ${name}`);
+      modules.set(
+        name,
+        createPlugin(
+          {
+            wasm: [{ data: source }],
+          },
+          { useWasi: true }
+        )
+      );
     }
 
     // start the drain
@@ -380,11 +408,11 @@ export const taskless = (
   // create the msw interceptor
   const handler = createHandler({
     loaded,
-    factory,
     logger,
     useLogging,
     capture,
     getPacks: async () => packs,
+    getModules: async () => modules,
   });
 
   /** MSW instance: If one is programatically provided, use that instead */
@@ -400,34 +428,57 @@ export const taskless = (
 
   const api = {
     /** add additional local packs programatically, or an entire configuration */
-    add(packOrConfig: string) {
+    add(packOrConfig: string | Pack | Config) {
       if (initialized) {
         throw new Error("A pack was added after Taskless was initialized");
       }
 
       const data =
         typeof packOrConfig === "string"
-          ? yaml.load(packOrConfig)
+          ? (YAML.parse(packOrConfig) as unknown)
           : packOrConfig;
 
-      const loadedConfig: Config = isConfig(data)
+      const loadedConfig: Config | undefined = isConfig(data)
         ? data
-        : {
-            schema: 1,
-            organizationId: "none",
-            packs: [...(isPack(data) ? [data] : [])],
-          };
+        : isPack(data)
+          ? {
+              schema: 1,
+              organizationId: "none",
+              packs: [data],
+            }
+          : undefined;
 
-      packs.push(...loadedConfig.packs);
+      if (!loadedConfig) {
+        throw new Error("Invalid pack or config");
+      }
+
+      for (const pack of loadedConfig.packs) {
+        packs.push(pack);
+
+        if (pack.module) {
+          logger.debug(`registering pack ${getModuleName(pack)}`);
+          moduleSource.set(
+            getModuleName(pack),
+            base64ToUint8Array(pack.module)
+          );
+        }
+      }
+
+      for (const [name, code] of Object.entries(loadedConfig.modules ?? {})) {
+        logger.debug(`registering pack ${name}`);
+        moduleSource.set(name, base64ToUint8Array(code));
+      }
     },
 
     addDefaultPacks() {
-      const config = yaml.load(defaultConfig, {
-        schema: yaml.FAILSAFE_SCHEMA,
-      }) as Config;
+      const config = YAML.parse(defaultConfig) as Config;
 
       for (const pack of config.packs) {
         packs.push(pack);
+      }
+
+      for (const [name, code] of Object.entries(config.modules ?? {})) {
+        moduleSource.set(name, base64ToUint8Array(code));
       }
     },
 
