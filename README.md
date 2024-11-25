@@ -53,6 +53,18 @@ A programatic API is available by importing `taskless` from `@taskless/loader/co
 
 (coming soon)
 
+# Building
+
+```bash
+# Build the project
+pnpm install
+pnpm build
+
+# to retrieve the latest artifacts from Taskless
+# calls scripts/generate.ts
+pnpm codegen
+```
+
 # License
 
 Apache 2.0
