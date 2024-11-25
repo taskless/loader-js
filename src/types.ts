@@ -157,6 +157,7 @@ export type PluginInput<
     path: string;
     url: string;
     method: string;
+    headers?: Array<[string, string]>;
     body?: TRequestBody;
   };
   response?: {
