@@ -1,5 +1,9 @@
+import { readFileSync } from "fs";
+import { resolve } from "path";
+import { packageDirectorySync } from "pkg-dir";
+
 // import { taskless } from "@taskless/core";
-import { taskless } from "../src/core.js";
+import { taskless, type Manifest } from "../src/core.js";
 
 /**
  * pnpm tsx --import="./examples/programatic.ts" examples/basic.ts
@@ -11,34 +15,39 @@ import { taskless } from "../src/core.js";
  * TASKLESS_API_KEY environment variable, this request will show up in your
  * Taskless console, including any additional Packs you've configured via
  * taskless.io.
+ *
+ * Instead of using Taskless' loader, you're using your own.
  */
 
-const pack = /* yaml */ `
-# Sample YAML pack that captures some additional telemetry data
-# This is included in @taskless/core normally, along with additional functionality
-pack: 1
-name: "@taskless/example"
-version: "1.0.0"
-description: Basic telemetry
-sends:
-  durationMs:
-    type: "number"
-    description: "The duration of the request in milliseconds"
-  status:
-    type: "number"
-    description: "The status code of the request"
-rules:
-  - matches: "https://.+"
-    hooks:
-      pre: |
-        context.set("start", now())
-      post: |
-        taskless.capture("durationMs", now() - context.get("start"))
-        taskless.capture("status", response.getStatus())
-`;
+const file = readFileSync(
+  resolve(
+    packageDirectorySync()!,
+    "./wasm/0191e2e7-8da6-7558-915d-4a2ecc82472b.wasm"
+  )
+);
+
+const manifest: Manifest = {
+  schema: "pre1",
+  name: "@taskless/example",
+  version: "1.0.0",
+  description: "Basic telemetry example, showing a programatic manifest",
+  capture: {
+    durationMs: {
+      type: "number",
+      description: "The duration of the request in milliseconds",
+    },
+    status: {
+      type: "number",
+      description: "The status code of the request",
+    },
+  },
+  permissions: {
+    domains: [".+"], // runs on all domains
+  },
+};
 
 const t = taskless(process.env.TASKLESS_API_KEY);
-t.add(pack);
-await t.load();
+t.add(manifest, file);
+t.load();
 
 export {};

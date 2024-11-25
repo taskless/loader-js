@@ -1,5 +1,8 @@
 import { type OASInput, type NormalizeOAS, type OASOutput } from "fets";
 import { type SetupServerApi } from "msw/node";
+import { type Config } from "./__generated__/config.js";
+import { type Manifest } from "./__generated__/manifest.js";
+import { type Pack } from "./__generated__/pack.js";
 import type openapi from "./__generated__/openapi.js";
 
 export function isDefined<T>(value: T): value is NonNullable<T> {
@@ -14,6 +17,9 @@ export function isLogLevel(value: unknown): value is LogLevel {
 }
 
 export type MaybePromise<T> = T | Promise<T>;
+
+export { type Pack } from "./__generated__/pack.js";
+export { type Manifest } from "./__generated__/manifest.js";
 
 type LogLevel = "trace" | "debug" | "info" | "warn" | "error";
 
@@ -65,7 +71,7 @@ export type InitOptions = {
 
 export type TasklessAPI = {
   logger: Logger;
-  add(pack: string | Pack): void;
+  add(manifest: Manifest, wasm: ArrayBuffer): void;
   addDefaultPacks(): void;
   flush(): Promise<void>;
   flushSync(): void;
@@ -75,14 +81,6 @@ export type TasklessAPI = {
   }>;
 };
 
-/** Describes the Taskless configuration */
-export type Config = OASOutput<
-  NormalizeOAS<typeof openapi>,
-  "/{version}/config",
-  "get"
->;
-/** Describes a pack in the Config */
-export type Pack = Config["packs"][number];
 /** Pack sends collection */
 export type Permissions = Pack["permissions"];
 

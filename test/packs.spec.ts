@@ -1,20 +1,11 @@
+import { readFile } from "node:fs/promises";
+import { type Config } from "@~/__generated__/config.js";
+import { ROOT } from "@~/constants.js";
 import { taskless } from "@~/core.js";
-import {
-  type ConsolePayload,
-  type Config,
-  type NetworkPayload,
-} from "@~/types.js";
+import { type ConsolePayload, type NetworkPayload } from "@~/types.js";
 import { http } from "msw";
 import { setupServer } from "msw/node";
 import { describe, test, vi } from "vitest";
-import YAML from "yaml";
-import sampleYamlConfig from "../src/__generated__/config.yaml?raw";
-
-const cfg = YAML.parse(sampleYamlConfig) as Config;
-const sampleYaml = YAML.stringify({
-  ...cfg.packs[0],
-  module: cfg.modules?.[Object.keys(cfg.modules ?? {})[0]],
-});
 
 describe("Loading packs", () => {
   test("Can programatically add packs that intercept requests", async ({
@@ -33,7 +24,7 @@ describe("Loading packs", () => {
         configInterceptor();
 
         const cfg: Config = {
-          schema: 1,
+          schema: "pre1",
           organizationId: "test",
           packs: [],
         };
@@ -72,7 +63,33 @@ describe("Loading packs", () => {
       },
     });
 
-    t.add(sampleYaml);
+    // this test should break if our wasm deviates
+    const file = await readFile(
+      `${ROOT}/wasm/0191e2e7-8da6-7558-915d-4a2ecc82472b.wasm`
+    );
+
+    t.add(
+      {
+        schema: "pre1",
+        name: "test",
+        description: "test pack",
+        version: "1.0.0",
+        capture: {
+          status: {
+            type: "number",
+            description: "HTTP status code",
+          },
+          url: {
+            type: "string",
+            description: "URL of the request",
+          },
+        },
+        permissions: {
+          domains: [".+"],
+        },
+      },
+      file
+    );
 
     // validate load
     const stats = await t.load();

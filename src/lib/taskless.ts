@@ -1,36 +1,34 @@
-import process, { exit } from "node:process";
-import { Worker, MessageChannel } from "node:worker_threads";
+import { readFile } from "node:fs/promises";
+import process from "node:process";
+import { Worker } from "node:worker_threads";
 import { createPlugin, type Plugin } from "@extism/extism";
+import { type Config } from "@~/__generated__/config.js";
+import { type Manifest } from "@~/__generated__/manifest.js";
+import { type Pack } from "@~/__generated__/pack.js";
+import { publicConfig } from "@~/__generated__/public.js";
 import {
   bypass,
   DEFAULT_FLUSH_INTERVAL,
   noop,
   TASKLESS_HOST,
   emptyConfig,
+  ROOT,
 } from "@~/constants.js";
 import {
-  type Pack,
   type InitOptions,
   type NetworkPayload,
   type CaptureCallback,
   type CaptureItem,
   type TasklessAPI,
   type Logger,
-  type Config,
-  isConfig,
-  isPack,
-  type ConsolePayload,
+  type MaybePromise,
 } from "@~/types.js";
 import { createClient, type NormalizeOAS } from "fets";
 import { setupServer } from "msw/node";
-import { base64ToUint8Array } from "uint8array-extras";
-import YAML from "yaml";
-import defaultConfig from "../__generated__/config.yaml?raw";
 import { InitializationError } from "./error.js";
 import { createHandler } from "./handler.js";
-import { id } from "./id.js";
+import { id, packIdentifier } from "./id.js";
 import { createLogger } from "./logger.js";
-import { getModuleName } from "./sandbox.js";
 import type openapi from "../__generated__/openapi.js";
 
 // our on-demand worker code for a synchronous flush
@@ -114,19 +112,17 @@ export const taskless = (
   let timer: NodeJS.Timeout;
 
   logger.debug(
-    YAML.stringify({
-      resolved: {
-        useNetwork,
-        useLogging,
-        activeEndpoint,
-      },
-      original: {
-        network: options?.network,
-        logging: options?.logging,
-        endpoint: options?.endpoint,
-        logLevel: options?.logLevel,
-      },
-    })
+    [
+      `Taskless initialized with:`,
+      `  - Network: ${useNetwork}`,
+      `  - Logging: ${useLogging}`,
+      `  - Endpoint: ${activeEndpoint}`,
+      `Original Options:`,
+      `  - Network: ${options?.network}`,
+      `  - Logging: ${options?.logging}`,
+      `  - Endpoint: ${options?.endpoint}`,
+      `  - Log Level: ${options?.logLevel}`,
+    ].join("\n")
   );
 
   if (!useNetwork && !useLogging) {
@@ -300,7 +296,7 @@ export const taskless = (
   /** Packs are added programatically or during the init step */
   const packs: Pack[] = [];
 
-  const moduleSource = new Map<string, ArrayBuffer>();
+  const moduleSource = new Map<string, MaybePromise<ArrayBuffer>>();
 
   /** WASM modules are added programatically or during the init step */
   const modules = new Map<string, Promise<Plugin>>();
@@ -318,12 +314,13 @@ export const taskless = (
       return undefined;
     }
 
+    logger.debug("Retrieving configuration from Taskless");
     const response = await client["/{version}/config"].get({
       headers: {
         authorization: `Bearer ${secret}`,
       },
       params: {
-        version: "v1",
+        version: "pre1",
       },
     });
 
@@ -334,7 +331,7 @@ export const taskless = (
       return emptyConfig;
     }
 
-    const data = await response.json();
+    const data = (await response.json()) as Config;
 
     logger.debug(
       `Retrieved configuration from Taskless (orgId: ${data.organizationId}, schema: ${data.schema})`
@@ -354,32 +351,47 @@ export const taskless = (
     // freeze
     initialized = true;
 
-    // copy packs from the config
+    // copy packs from the config into module source
     const config = await promisedConfig;
+    const seen = new Set<string>();
 
     if (config) {
+      logger.debug("Initializing remote packs");
       for (const pack of config.packs ?? []) {
-        packs.unshift(pack);
-      }
+        const ident = packIdentifier(pack as Pack);
+        if (seen.has(ident)) {
+          continue;
+        }
 
-      for (const [name, code] of Object.entries(config.modules ?? {})) {
-        moduleSource.set(name, base64ToUint8Array(code));
+        seen.add(ident);
+        packs.push(pack as Pack);
+        moduleSource.set(
+          ident,
+          (async () => {
+            const data = await fetch(pack.url.source);
+            return data.arrayBuffer();
+          })()
+        );
       }
     }
 
-    // start initializing wasm modules early
-    for (const [name, source] of moduleSource.entries()) {
-      logger.debug(`initializing wasm for pack ${name}`);
-      modules.set(
-        name,
-        createPlugin(
-          {
-            wasm: [{ data: source }],
-          },
-          { useWasi: true }
-        )
-      );
-    }
+    await Promise.all(
+      Array.from(moduleSource.entries()).map(async ([ident, source]) => {
+        modules.set(
+          ident,
+          createPlugin(
+            {
+              wasm: [{ data: await Promise.resolve(source) }],
+            },
+            { useWasi: true }
+          )
+        );
+      })
+    );
+
+    logger.debug(
+      `Initialized ${modules.size} wasm modules across ${packs.length} packs`
+    );
 
     // start the drain
     startDrain();
@@ -427,58 +439,28 @@ export const taskless = (
   }
 
   const api = {
-    /** add additional local packs programatically, or an entire configuration */
-    add(packOrConfig: string | Pack | Config) {
+    /** add additional local packs programatically */
+    add(manifest: Manifest, wasm: ArrayBuffer) {
       if (initialized) {
         throw new Error("A pack was added after Taskless was initialized");
       }
 
-      const data =
-        typeof packOrConfig === "string"
-          ? (YAML.parse(packOrConfig) as unknown)
-          : packOrConfig;
+      const pack: Pack = {
+        ...manifest,
+        url: { source: "", signature: "" },
+      };
 
-      const loadedConfig: Config | undefined = isConfig(data)
-        ? data
-        : isPack(data)
-          ? {
-              schema: 1,
-              organizationId: "none",
-              packs: [data],
-            }
-          : undefined;
+      const ident = packIdentifier(pack);
 
-      if (!loadedConfig) {
-        throw new Error("Invalid pack or config");
-      }
-
-      for (const pack of loadedConfig.packs) {
-        packs.push(pack);
-
-        if (pack.module) {
-          logger.debug(`registering pack ${getModuleName(pack)}`);
-          moduleSource.set(
-            getModuleName(pack),
-            base64ToUint8Array(pack.module)
-          );
-        }
-      }
-
-      for (const [name, code] of Object.entries(loadedConfig.modules ?? {})) {
-        logger.debug(`registering pack ${name}`);
-        moduleSource.set(name, base64ToUint8Array(code));
-      }
+      packs.push(pack);
+      moduleSource.set(ident, wasm);
     },
 
     addDefaultPacks() {
-      const config = YAML.parse(defaultConfig) as Config;
-
-      for (const pack of config.packs) {
-        packs.push(pack);
-      }
-
-      for (const [name, code] of Object.entries(config.modules ?? {})) {
-        moduleSource.set(name, base64ToUint8Array(code));
+      for (const pack of publicConfig.packs) {
+        const ident = packIdentifier(pack as Pack);
+        packs.push(pack as Pack);
+        moduleSource.set(ident, readFile(`${ROOT}/${pack.url.source}`));
       }
     },
 

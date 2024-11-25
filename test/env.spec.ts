@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { execa } from "execa";
 import { vi, test as vitest, afterEach, describe, beforeAll } from "vitest";
 import { taskless } from "../src/core.js";
-import { defaultConfig, withHono } from "./helpers/server.js";
+import { anyWasm, defaultConfig, withHono } from "./helpers/server.js";
 
 const test = withHono(vitest);
 
@@ -55,6 +55,7 @@ describe("Taskless environment and importing (requires build)", () => {
     ].join(";");
 
     defaultConfig(hono.app);
+    anyWasm(hono.app);
 
     const eventListener = vi.fn();
 
@@ -70,12 +71,15 @@ describe("Taskless environment and importing (requires build)", () => {
     const { stdout, stderr } = await execa({
       preferLocal: true,
       env: {
-        TASKLESS_LOG_LEVEL: "trace",
+        TASKLESS_LOG_LEVEL: "debug",
         TASKLESS_API_KEY: "test",
         TASKLESS_OPTIONS,
       },
       cwd: resolve(dirname(fileURLToPath(import.meta.url)), "../"),
     })`node --import=./dist/index.js test/fixtures/one.js`;
+
+    // console.log(stdout);
+    // console.log(stderr);
 
     expect(stdout).toMatch(/initialized taskless/i);
     expect(stdout).toMatch(/taskless autoloader ran successfully/i);

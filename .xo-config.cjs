@@ -2,7 +2,7 @@ module.exports = {
   prettier: true,
   space: true,
   nodeVersion: false,
-  ignore: ["vendor/**"],
+  ignore: ["src/__generated__/**"],
   rules: {
     "@typescript-eslint/naming-convention": "off",
     "@typescript-eslint/no-floating-promises": "off",

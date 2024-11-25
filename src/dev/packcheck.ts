@@ -1,5 +1,6 @@
 /* eslint-disable n/no-process-env */
 import process from "node:process";
+import { type Manifest } from "@~/__generated__/manifest.js";
 import { taskless } from "@~/core.js";
 import { type ConsolePayload } from "@~/types.js";
 import { http } from "msw";
@@ -17,7 +18,8 @@ type Fixture = {
  * with your existing unit testing framework
  */
 export async function packCheck(
-  configOrPack: string,
+  manifest: Manifest,
+  wasm: ArrayBuffer,
   fixture: Fixture
 ): Promise<ConsolePayload> {
   if (process.env.NODE_ENV === "production") {
@@ -60,7 +62,7 @@ export async function packCheck(
     },
   });
 
-  t.add(configOrPack);
+  t.add(manifest, wasm);
   await t.load();
 
   await fetch(fixture.request);

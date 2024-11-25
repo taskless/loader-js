@@ -1,15 +1,10 @@
-import { readFileSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { serve, type ServerType } from "@hono/node-server";
-import { type Config } from "@~/types.js";
+import { publicConfig } from "@~/__generated__/public.js";
+import { ROOT } from "@~/constants.js";
 import getPort from "get-port";
 import { Hono } from "hono";
 import { afterEach, type test } from "vitest";
-import YAML from "yaml";
-import { getJSONConfig } from "./yamlGen.js";
-
-const cfg = YAML.parse(
-  readFileSync("src/__generated__/config.yaml", "utf8")
-) as Config;
 
 type HonoContext = {
   hono: {
@@ -49,8 +44,30 @@ export const withHono = <T extends typeof test>(t: T) => {
 };
 
 export const defaultConfig = (app: Hono) => {
-  app.get("/v1/config", (c) => {
-    return c.json(getJSONConfig());
+  app.get("/pre1/config", (c) => {
+    const u = new URL(c.req.url);
+    const base = `${u.protocol}//${u.host}`;
+    const modifiedConfig = structuredClone(publicConfig);
+    modifiedConfig.packs = modifiedConfig.packs.map((pack) => {
+      pack.url.source = `${base}/${pack.url.source.replace(/^\.\//, "")}`;
+      return pack;
+    });
+
+    return c.json(modifiedConfig);
+  });
+};
+
+export const anyWasm = (app: Hono) => {
+  app.get("/wasm/:id", async (c) => {
+    // console.log(`serving wasm: ${c.req.param("id")}`);
+    const file = await readFile(`${ROOT}/wasm/${c.req.param("id")}`);
+
+    return new Response(file, {
+      status: 200,
+      headers: {
+        "Content-Type": "application/wasm",
+      },
+    });
   });
 };
 

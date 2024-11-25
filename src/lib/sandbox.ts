@@ -1,11 +1,8 @@
 import process from "node:process";
 import { type Plugin } from "@extism/extism";
-import { type PluginOutput, type Logger, type Pack } from "@~/types.js";
-
-/** Get a module's specific name by combining pack and version info */
-export const getModuleName = (pack: Pack) => {
-  return `${pack.name} @ ${pack.version}`;
-};
+import { type Pack } from "@~/__generated__/pack.js";
+import { type PluginOutput, type Logger } from "@~/types.js";
+import { packIdentifier } from "./id.js";
 
 /** internal: creates a sandbox based on the pack's permissions */
 const createSandbox = async (
@@ -80,21 +77,29 @@ type Callbacks = {
  * handlers logic to focus on the mocking and not on the lifecycle
  */
 export const runSandbox = async (
-  requestId: string,
-  request: Request,
+  requestInfo: {
+    requestId: string;
+    request: Request;
+  },
+  logger: Logger,
   packs: Pack[],
   callbacks: Callbacks
 ) => {
+  const { requestId, request } = requestInfo;
   const context: Record<string, Record<string, any>> = {};
   const plugins = await callbacks.getModules();
 
   // run packs forward
+  logger.debug(`[${requestId}] (pre) running sandbox`);
   const preHooks = await Promise.allSettled(
     packs.map(async (pack, index) => {
-      const plugin = await plugins.get(getModuleName(pack));
+      const plugin = await plugins.get(packIdentifier(pack));
+
       if (!plugin) {
         throw new Error(`[${requestId}] Plugin not found in modules`);
       }
+
+      // logger.debug(`[${requestId}] running pack`);
 
       const output = await plugin.call(
         "pre",
@@ -105,6 +110,8 @@ export const runSandbox = async (
           })
         )
       );
+
+      // logger.debug(`[${requestId}] pack ran`);
 
       const result = output?.json() as PluginOutput;
 
@@ -128,9 +135,11 @@ export const runSandbox = async (
   const fetchResponse = await fetch(finalizedRequest);
 
   // run packs backwards
+  logger.debug(`[${requestId}] (post) running sandbox`);
   const postHooks = await Promise.allSettled(
     packs.reverse().map(async (pack, index) => {
-      const plugin = await plugins.get(getModuleName(pack));
+      const plugin = await plugins.get(packIdentifier(pack));
+
       if (!plugin) {
         throw new Error(`[${requestId}] Plugin not found in modules`);
       }

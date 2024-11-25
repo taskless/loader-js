@@ -1,9 +1,9 @@
 import { type Plugin } from "@extism/extism";
+import { type Pack } from "@~/__generated__/pack.js";
 import {
   type ConsolePayload,
   type CaptureCallback,
   type Logger,
-  type Pack,
   type PluginOutput,
 } from "@~/types.js";
 import { http, type StrictResponse } from "msw";
@@ -46,12 +46,7 @@ export const createHandler = ({
     // find matching packs from the config based on a domain match
     // on match, start an async process that makes a lua engine and saves the pack info
     const packs = await getPacks();
-    logger.debug(`[${requestId}] total ${packs.length} packs`);
-    const plugins = await getModules();
-    logger.debug(`[${requestId}] total ${plugins.size} modules`);
-
     const use: Pack[] = [];
-    const context: Record<string, Record<string, any>> = {};
 
     for (const pack of packs) {
       // skip non-domain matches
@@ -74,35 +69,40 @@ export const createHandler = ({
       use.push(pack);
     }
 
-    logger.debug(`[${requestId}] pre hooks (${use.length})`);
+    logger.debug(`[${requestId}] matched (${use.length}) packs`);
 
     const logItem: ConsolePayload = {
       requestId,
       dimensions: [],
     };
 
-    const response = await runSandbox(requestId, info.request, use, {
-      async getModules() {
-        // get modules from parent scope
-        return getModules();
-      },
-      async onResult(result: PluginOutput) {
-        for (const [key, value] of Object.entries(result.capture ?? {})) {
-          capture({
-            requestId,
-            dimension: key,
-            value: `${value}`,
-          });
-          logItem.dimensions.push({
-            name: key,
-            value: `${value}`,
-          });
-        }
-      },
-      onError(error: Error) {
-        logger.error(`[${requestId}] ${error.message}`);
-      },
-    });
+    const response = await runSandbox(
+      { requestId, request: info.request },
+      logger,
+      use,
+      {
+        async getModules() {
+          // get modules from parent scope
+          return getModules();
+        },
+        async onResult(result: PluginOutput) {
+          for (const [key, value] of Object.entries(result.capture ?? {})) {
+            capture({
+              requestId,
+              dimension: key,
+              value: `${value}`,
+            });
+            logItem.dimensions.push({
+              name: key,
+              value: `${value}`,
+            });
+          }
+        },
+        onError(error) {
+          logger.error(`[${requestId}] error: ${error.message}`);
+        },
+      }
+    );
 
     if (useLogging) {
       logger.data(JSON.stringify(logItem));
