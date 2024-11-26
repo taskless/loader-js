@@ -1,5 +1,11 @@
 # @taskless/loader
 
+## 0.0.25
+
+### Patch Changes
+
+- cc8215a: Fixes the bypass logic for remote Wasm modules
+
 ## 0.0.24
 
 ### Patch Changes
