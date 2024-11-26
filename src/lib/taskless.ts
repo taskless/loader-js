@@ -215,6 +215,10 @@ export const taskless = (
           params: {
             version: "v1",
           },
+          headers: {
+            authorization: `Bearer ${secret}`,
+            ...bypass,
+          },
         });
       } catch {}
     }
@@ -257,6 +261,7 @@ export const taskless = (
               headers: {
                 authorization: `Bearer ${secret}`,
                 "Content-Type": "application/json",
+                ...bypass,
               },
               body: JSON.stringify(networkPayload),
             },
@@ -318,6 +323,7 @@ export const taskless = (
     const response = await client["/{version}/config"].get({
       headers: {
         authorization: `Bearer ${secret}`,
+        ...bypass,
       },
       params: {
         version: "pre1",
@@ -368,7 +374,13 @@ export const taskless = (
         moduleSource.set(
           ident,
           (async () => {
-            const data = await fetch(pack.url.source);
+            logger.trace(`Fetching ${ident} from ${pack.url.source}`);
+            const data = await fetch(pack.url.source, {
+              headers: {
+                ...bypass,
+              },
+            });
+            logger.trace(`Fetched ${ident} from ${pack.url.source}`);
             return data.arrayBuffer();
           })()
         );

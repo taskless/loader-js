@@ -31,12 +31,16 @@ export const createHandler = ({
   getModules: () => Promise<Map<string, Promise<Plugin>>>;
 }) =>
   http.all("https://*", async (info) => {
+    // let a bypassed request through to any other handlers
+    if (isBypassed(info.request)) {
+      return undefined;
+    }
+
     // wait for loaded to unblock (means the shim library has loaded)
     // !ok means disable the library's functionality
     const ok = await loaded;
 
-    // let a bypassed request through to any other handlers
-    if (!ok || isBypassed(info.request)) {
+    if (!ok) {
       return undefined;
     }
 
