@@ -6,11 +6,7 @@ import path from "node:path";
 
 import tsconfigJson from "./tsconfig.json";
 
-const entryPoints = [
-  "./src/index.ts",
-  "./src/core.ts",
-  "./src/dev/packcheck.ts",
-];
+const entryPoints = ["./src/index.ts", "./src/core.ts"];
 
 export default defineConfig({
   plugins: [

@@ -31,11 +31,6 @@
       "types": "./dist/core.d.ts",
       "import": "./dist/core.js",
       "require": "./dist/core.cjs"
-    },
-    "./dev/packcheck": {
-      "types": "./dist/dev/packcheck.d.ts",
-      "import": "./dist/dev/packcheck.js",
-      "require": "./dist/dev/packcheck.cjs"
     }
   },
   "files": [
