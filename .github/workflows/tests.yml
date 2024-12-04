@@ -1,9 +1,17 @@
-name: Release
+name: Run Tests
 
 on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - reopened
+      - edited
+      - synchronize
 
 env:
   HUSKY: 0 # Disables husky hooks
@@ -11,8 +19,8 @@ env:
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
 jobs:
-  release:
-    name: Release
+  test:
+    name: Run All Tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repo
@@ -33,10 +41,5 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      - name: Create Release Pull Request
-        uses: changesets/action@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          title: "Next Release"
-          commit: "chore: Versions packages for latest changesets"
+      - name: Run Test Suite
+        run: pnpm test
