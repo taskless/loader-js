@@ -1,5 +1,11 @@
 # @taskless/loader
 
+## 0.0.26
+
+### Patch Changes
+
+- d5596ef: BREAKING: Removes Packcheck (now @taskless/packcheck)
+
 ## 0.0.25
 
 ### Patch Changes
