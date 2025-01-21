@@ -63,7 +63,10 @@ const createSandbox = async (
 };
 
 type getModulesCallback = () => Promise<Map<string, Promise<Plugin>>>;
-type onResultCallback = (result: NonNullable<PluginOutput>) => Promise<void>;
+type onResultCallback = (
+  pack: Pack,
+  result: NonNullable<PluginOutput>
+) => Promise<void>;
 type onErrorCallback = (error: any) => void;
 type Callbacks = {
   getModules: getModulesCallback;
@@ -119,7 +122,7 @@ export const runSandbox = async (
         context[`${index}`] = result.context;
       }
 
-      await callbacks.onResult(result);
+      await callbacks.onResult(pack, result);
     })
   );
 
@@ -162,7 +165,7 @@ export const runSandbox = async (
         context[`${index}`] = result.context;
       }
 
-      await callbacks.onResult(result);
+      await callbacks.onResult(pack, result);
     })
   );
 

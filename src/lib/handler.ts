@@ -89,15 +89,20 @@ export const createHandler = ({
           // get modules from parent scope
           return getModules();
         },
-        async onResult(result: PluginOutput) {
+        async onResult(pack: Pack, result: PluginOutput) {
           for (const [key, value] of Object.entries(result.capture ?? {})) {
+            // name = @taskless/apm
+            // new key to be = @taskless/apm/durationMs
+            // remove an slashes from the key to prevent namespace issues
+            const cleanedKey = key.replaceAll("/", "");
+            const nskey = `${pack.name}/${cleanedKey}`;
             capture({
               requestId,
-              dimension: key,
+              dimension: nskey,
               value: `${value}`,
             });
             logItem.dimensions.push({
-              name: key,
+              name: nskey,
               value: `${value}`,
             });
           }
