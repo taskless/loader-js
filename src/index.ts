@@ -1,3 +1,6 @@
+// AUTOLOADER FILE
+// This file is used to load the taskless library and initialize it
+// when used with the `--import` flag in Node.js
 /* eslint-disable n/no-process-env */
 import process from "node:process";
 import { autoload } from "./lib/taskless.js";

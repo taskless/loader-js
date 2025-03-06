@@ -2,10 +2,10 @@ import { readFile } from "node:fs/promises";
 import process from "node:process";
 import { Worker } from "node:worker_threads";
 import { createPlugin, type Plugin } from "@extism/extism";
-import { type Config } from "@~/__generated__/config.js";
 import { type Manifest } from "@~/__generated__/manifest.js";
 import { type Pack } from "@~/__generated__/pack.js";
-import { publicConfig } from "@~/__generated__/public.js";
+import { publicConfig } from "@~/__generated__/publicConfig.js";
+import { type Schema } from "@~/__generated__/schema.js";
 import {
   bypass,
   DEFAULT_FLUSH_INTERVAL,
@@ -314,7 +314,7 @@ export const taskless = (
    * Using a promise keeps taskless() synchronous for JS loaders and avoid
    * race conditions.
    */
-  const promisedConfig: Promise<Config | undefined> = (async () => {
+  const promisedConfig: Promise<Schema | undefined> = (async () => {
     if (!secret) {
       return undefined;
     }
@@ -326,7 +326,7 @@ export const taskless = (
         ...bypass,
       },
       params: {
-        version: "pre1",
+        version: "pre2",
       },
     });
 
@@ -337,7 +337,7 @@ export const taskless = (
       return emptyConfig;
     }
 
-    const data = (await response.json()) as Config;
+    const data = (await response.json()) as Schema;
 
     logger.debug(
       `Retrieved configuration from Taskless (orgId: ${data.organizationId}, schema: ${data.schema})`

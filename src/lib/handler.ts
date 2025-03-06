@@ -50,30 +50,6 @@ export const createHandler = ({
     // find matching packs from the config based on a domain match
     // on match, start an async process that makes a lua engine and saves the pack info
     const packs = await getPacks();
-    const use: Pack[] = [];
-
-    for (const pack of packs) {
-      // skip non-domain matches
-      if (!pack.permissions?.domains) {
-        continue;
-      }
-
-      let matched = false;
-      for (const domain of pack.permissions.domains) {
-        if (new RegExp(domain).test(info.request.url)) {
-          matched = true;
-          break;
-        }
-      }
-
-      if (!matched) {
-        continue;
-      }
-
-      use.push(pack);
-    }
-
-    logger.debug(`[${requestId}] matched (${use.length}) packs`);
 
     const logItem: ConsolePayload = {
       requestId,
@@ -83,7 +59,7 @@ export const createHandler = ({
     const response = await runSandbox(
       { requestId, request: info.request },
       logger,
-      use,
+      packs,
       {
         async getModules() {
           // get modules from parent scope

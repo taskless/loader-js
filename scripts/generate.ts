@@ -58,7 +58,7 @@ await Promise.all(
       }
     ),
     downloadFile(
-      new URL(`${base}/.well-known/schema/pre1/pack.json`),
+      new URL(`${base}/.well-known/schema/pre2/pack.json`),
       "pack.ts",
       async (contents) => {
         const ts = await compile(JSON.parse(contents) as JSONSchema, "Pack");
@@ -66,7 +66,15 @@ await Promise.all(
       }
     ),
     downloadFile(
-      new URL(`${base}/.well-known/schema/pre1/manifest.json`),
+      new URL(`${base}/.well-known/schema/pre2/schema.json`),
+      "schema.ts",
+      async (contents) => {
+        const ts = await compile(JSON.parse(contents) as JSONSchema, "Schema");
+        return prettier.format(ts, prettierOptions);
+      }
+    ),
+    downloadFile(
+      new URL(`${base}/.well-known/schema/pre2/manifest.json`),
       "manifest.ts",
       async (contents) => {
         const ts = await compile(
@@ -77,16 +85,8 @@ await Promise.all(
       }
     ),
     downloadFile(
-      new URL(`${base}/.well-known/schema/pre1/schema.json`),
-      "config.ts",
-      async (contents) => {
-        const ts = await compile(JSON.parse(contents) as JSONSchema, "Config");
-        return prettier.format(ts, prettierOptions);
-      }
-    ),
-    downloadFile(
-      new URL(`${base}/public/config`),
-      "public.ts",
+      new URL(`${base}/public/pre2/config`),
+      "publicConfig.ts",
       async (contents) => {
         const configuration = JSON.parse(contents);
 
@@ -115,9 +115,10 @@ await Promise.all(
         return prettier.format(
           `
             /* eslint-disable */
-            import { type Config } from "./config.js";
+            import { type Schema } from "./schema.js";
 
-            const publicConfig:Config = ${JSON.stringify(configuration, null, 2)};
+            const publicConfig: Schema = ${JSON.stringify(configuration, null, 2)};
+
             export { publicConfig };
           `,
           prettierOptions

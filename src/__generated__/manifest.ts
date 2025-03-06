@@ -6,64 +6,41 @@
  */
 
 /**
- * A pack definition to be submitted to the Taskless cloud or loaded inline into the Taskless loader
+ * Manifests describe packs as they're uploaded to Taskless. They contain additional metadata about the default displays, graphs, and configuration panels
  */
 export interface Manifest {
   /**
    * The pack schema version used
    */
-  schema: "pre1";
+  schema: "pre2";
   /**
    * The pack name
    */
   name: string;
   /**
-   * The pack version
+   * The pack version, using semantic versioning conventions
    */
   version: string;
   /**
-   * The pack description
+   * A short description of the pack's functionality
    */
   description: string;
   /**
-   * Describes the data this pack intends to capture
-   */
-  capture: {
-    /**
-     * This interface was referenced by `undefined`'s JSON-Schema definition
-     * via the `patternProperty` "^(.*)$".
-     */
-    [k: string]: {
-      /**
-       * The type of data to capture
-       */
-      type: "string" | "number";
-      description: string;
-      [k: string]: unknown;
-    };
-  };
-  /**
-   * The permissions requested for this pack
+   * The permissions requested for this pack from the host system
    */
   permissions: {
-    /**
-     * The domains this pack is allowed to request data from as regular expressions.
-     */
-    domains?: string[];
     /**
      * The environment variables this pack is allowed to access on the host system
      */
     environment?: string[];
     /**
-     * During the lifecycle, request access to additional properties such as 'headers' and 'body'
+     * Whether this pack can access the request and response body
      */
-    request?: string[];
-    /**
-     * During the lifecycle, response access to additional properties such as 'headers' and 'body'
-     */
-    response?: string[];
-    [k: string]: unknown;
+    body?: boolean;
   };
+  /**
+   * Default dashboard configurations for this pack
+   */
   displays?: {
     /**
      * A name for the display module, unique to the pack
@@ -80,19 +57,47 @@ export interface Manifest {
       count?: string;
       group?: string;
       where?: {
-        /**
-         * This interface was referenced by `undefined`'s JSON-Schema definition
-         * via the `patternProperty` "^(.*)$".
-         */
         [k: string]: string | number;
       };
-      [k: string]: unknown;
     };
     /**
      * The default display mode for this module
      */
     display: "graph" | "table";
-    [k: string]: unknown;
   }[];
-  [k: string]: unknown;
+  /**
+   * User-configurable fields for this pack
+   */
+  fields?: (
+    | {
+        name: string;
+        type: "string";
+        description: string;
+        default: string;
+      }
+    | {
+        name: string;
+        type: "string[]";
+        description: string;
+        default: string[];
+      }
+    | {
+        name: string;
+        type: "number";
+        description: string;
+        default: number;
+      }
+    | {
+        name: string;
+        type: "number[]";
+        description: string;
+        default: number[];
+      }
+    | {
+        name: string;
+        type: "boolean";
+        description: string;
+        default: boolean;
+      }
+  )[];
 }

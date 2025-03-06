@@ -27,23 +27,19 @@ const file = readFileSync(
 );
 
 const manifest: Manifest = {
-  schema: "pre1",
+  schema: "pre2",
   name: "@taskless/example",
   version: "1.0.0",
   description: "Basic telemetry example, showing a programatic manifest",
-  capture: {
-    durationMs: {
-      type: "number",
-      description: "The duration of the request in milliseconds",
+  permissions: {},
+  fields: [
+    {
+      name: "enableStatus",
+      type: "boolean",
+      description: "Enable status logging",
+      default: true,
     },
-    status: {
-      type: "number",
-      description: "The status code of the request",
-    },
-  },
-  permissions: {
-    domains: [".+"], // runs on all domains
-  },
+  ],
 };
 
 const t = taskless(process.env.TASKLESS_API_KEY);

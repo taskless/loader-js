@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { serve, type ServerType } from "@hono/node-server";
-import { publicConfig } from "@~/__generated__/public.js";
+import { publicConfig } from "@~/__generated__/publicConfig.js";
 import { ROOT } from "@~/constants.js";
 import getPort from "get-port";
 import { Hono } from "hono";
@@ -44,7 +44,7 @@ export const withHono = <T extends typeof test>(t: T) => {
 };
 
 export const defaultConfig = (app: Hono) => {
-  app.get("/pre1/config", (c) => {
+  app.get("/pre2/config", (c) => {
     const u = new URL(c.req.url);
     const base = `${u.protocol}//${u.host}`;
     const modifiedConfig = structuredClone(publicConfig);

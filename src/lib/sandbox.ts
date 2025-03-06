@@ -12,6 +12,7 @@ const createSandbox = async (
     request: Request;
     response?: Response;
     context: Record<string, string>;
+    configuration?: Record<string, unknown>;
   }
 ) => {
   const extractBody = async (httpObject: Request | Response) => {
@@ -23,8 +24,6 @@ const createSandbox = async (
     }
   };
 
-  const requestKeys = pack.permissions?.request ?? [];
-  const responseKeys = pack.permissions?.response ?? [];
   const environmentKeys = pack.permissions?.environment ?? [];
 
   const env: Record<string, string | undefined> = {};
@@ -40,20 +39,16 @@ const createSandbox = async (
       url: info.request.url,
       domain: new URL(info.request.url).hostname,
       path: new URL(info.request.url).pathname,
-      headers: requestKeys.includes("headers")
-        ? Object.fromEntries(info.request.headers.entries())
-        : undefined,
-      body: requestKeys.includes("body")
+      headers: Object.fromEntries(info.request.headers.entries()),
+      body: pack.permissions?.body
         ? await extractBody(info.request)
         : undefined,
     },
     response: info.response
       ? {
           status: info.response.status,
-          headers: responseKeys.includes("headers")
-            ? Object.fromEntries(info.response.headers.entries())
-            : undefined,
-          body: responseKeys.includes("body")
+          headers: Object.fromEntries(info.response.headers.entries()),
+          body: pack.permissions?.body
             ? await extractBody(info.response)
             : undefined,
         }

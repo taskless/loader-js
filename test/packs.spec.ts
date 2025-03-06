@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { type Config } from "@~/__generated__/config.js";
+import { type Schema } from "@~/__generated__/schema.js";
 import { ROOT } from "@~/constants.js";
 import { taskless } from "@~/core.js";
 import { type ConsolePayload, type NetworkPayload } from "@~/types.js";
@@ -23,8 +23,8 @@ describe("Loading packs", () => {
       http.get("https://data.tskl.es/:version/config", async (info) => {
         configInterceptor();
 
-        const cfg: Config = {
-          schema: "pre1",
+        const cfg: Schema = {
+          schema: "pre2",
           organizationId: "test",
           packs: [],
         };
@@ -70,23 +70,11 @@ describe("Loading packs", () => {
 
     t.add(
       {
-        schema: "pre1",
+        schema: "pre2",
         name: "test",
         description: "test pack",
         version: "1.0.0",
-        capture: {
-          status: {
-            type: "number",
-            description: "HTTP status code",
-          },
-          url: {
-            type: "string",
-            description: "URL of the request",
-          },
-        },
-        permissions: {
-          domains: [".+"],
-        },
+        permissions: {},
       },
       file
     );
@@ -125,13 +113,13 @@ describe("Loading packs", () => {
     const log = logs[0];
 
     expect(
-      log.dimensions.some((d) => d.name === "status" && d.value === "200"),
+      log.dimensions.some((d) => d.name === "test/status" && d.value === "200"),
       "Logs status"
     ).toBe(true);
 
     expect(
       log.dimensions.some(
-        (d) => d.name === "url" && d.value === "https://example.com/sample"
+        (d) => d.name === "test/url" && d.value === "https://example.com/sample"
       ),
       "Logs URL"
     ).toBe(true);

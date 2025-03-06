@@ -41,329 +41,37 @@ export default {
             content: {
               "application/json": {
                 schema: {
-                  anyOf: [
-                    {
-                      description: "A valid Taskless cloud configuration",
-                      type: "object",
-                      properties: {
-                        schema: {
-                          description: "The config schema version used",
-                          type: "number",
-                          enum: [1],
-                        },
-                        organizationId: {
-                          type: "string",
-                        },
-                        packs: {
-                          type: "array",
-                          items: {
-                            type: "object",
-                            properties: {
-                              schema: {
-                                description: "The pack schema version used",
-                                type: "number",
-                                enum: [3],
-                              },
-                              name: {
-                                description: "The pack name",
-                                type: "string",
-                              },
-                              version: {
-                                description: "The pack version",
-                                type: "string",
-                              },
-                              description: {
-                                description: "The pack description",
-                                type: "string",
-                              },
-                              capture: {
-                                description:
-                                  "Describes the data this pack intends to capture",
-                                type: "object",
-                                additionalProperties: {
-                                  type: "object",
-                                  properties: {
-                                    type: {
-                                      description:
-                                        "The type of data to capture",
-                                      anyOf: [
-                                        {
-                                          const: "string",
-                                          type: "string",
-                                        },
-                                        {
-                                          const: "number",
-                                          type: "string",
-                                        },
-                                      ],
-                                    },
-                                    description: {
-                                      type: "string",
-                                    },
-                                  },
-                                  required: ["type", "description"],
-                                },
-                              },
-                              permissions: {
-                                description:
-                                  "The permissions requested for this pack",
-                                type: "object",
-                                properties: {
-                                  domains: {
-                                    description:
-                                      "The domains this pack is allowed to request data from as regular expressions.",
-                                    type: "array",
-                                    items: {
-                                      type: "string",
-                                    },
-                                  },
-                                  environment: {
-                                    description:
-                                      "The environment variables this pack is allowed to access on the host system",
-                                    type: "array",
-                                    items: {
-                                      type: "string",
-                                    },
-                                  },
-                                  request: {
-                                    description:
-                                      "During the lifecycle, request access to additional properties such as 'headers' and 'body'",
-                                    type: "array",
-                                    items: {
-                                      type: "string",
-                                    },
-                                  },
-                                  response: {
-                                    description:
-                                      "During the lifecycle, response access to additional properties such as 'headers' and 'body'",
-                                    type: "array",
-                                    items: {
-                                      type: "string",
-                                    },
-                                  },
-                                },
-                              },
-                              displays: {
-                                description:
-                                  "A set of pre-configured graphs or display modules available in this pack",
-                                type: "array",
-                                items: {
-                                  type: "object",
-                                  properties: {
-                                    name: {
-                                      description:
-                                        "A name for the display module, unique to the pack",
-                                      type: "string",
-                                    },
-                                    title: {
-                                      description: "The title",
-                                      type: "string",
-                                    },
-                                    query: {
-                                      description:
-                                        "Describes the query that retrieves data for this module",
-                                      type: "object",
-                                      properties: {
-                                        count: {
-                                          type: "string",
-                                        },
-                                        group: {
-                                          type: "string",
-                                        },
-                                        where: {
-                                          type: "object",
-                                          additionalProperties: {
-                                            anyOf: [
-                                              {
-                                                type: "string",
-                                              },
-                                              {
-                                                type: "number",
-                                              },
-                                            ],
-                                          },
-                                        },
-                                      },
-                                    },
-                                    display: {
-                                      description:
-                                        "The default display mode for this module",
-                                      anyOf: [
-                                        {
-                                          type: "string",
-                                          enum: ["graph"],
-                                        },
-                                        {
-                                          type: "string",
-                                          enum: ["table"],
-                                        },
-                                      ],
-                                    },
-                                  },
-                                  required: [
-                                    "name",
-                                    "title",
-                                    "query",
-                                    "display",
-                                  ],
-                                },
-                              },
-                              module: {
-                                description:
-                                  "If this pack contains runtime code, this contains a base64 of the module's content. When packs are added to a config, modules are hoisted to reduce duplication.",
-                                type: "string",
-                              },
+                  _def: {
+                    options: [
+                      {
+                        _def: {
+                          unknownKeys: "strip",
+                          catchall: {
+                            _def: {
+                              typeName: "ZodNever",
                             },
-                            required: ["schema", "name", "version"],
                           },
+                          typeName: "ZodObject",
+                          description: "A valid Taskless cloud configuration",
                         },
-                        modules: {
-                          type: "object",
-                          additionalProperties: {
-                            description: "The module content",
-                            type: "string",
-                          },
-                        },
+                        _cached: null,
                       },
-                      required: ["schema", "organizationId", "packs"],
-                    },
-                    {
-                      description: "A valid Taskless cloud configuration",
-                      type: "object",
-                      properties: {
-                        schema: {
-                          description: "The config schema version used",
-                          type: "string",
-                          enum: ["pre1"],
-                        },
-                        organizationId: {
-                          type: "string",
-                        },
-                        packs: {
-                          type: "array",
-                          items: {
-                            description:
-                              "A pack delivered from the Taskless cloud, including information on how to retrieve the pack's runtime code",
-                            type: "object",
-                            properties: {
-                              schema: {
-                                description: "The pack schema version used",
-                                type: "string",
-                                enum: ["pre1"],
-                              },
-                              name: {
-                                description: "The pack name",
-                                type: "string",
-                              },
-                              version: {
-                                description: "The pack version",
-                                type: "string",
-                              },
-                              description: {
-                                description: "The pack description",
-                                type: "string",
-                              },
-                              url: {
-                                description:
-                                  "When a pack's excutable code is hosted remotely, this object describes how to download and verify it",
-                                type: "object",
-                                properties: {
-                                  source: {
-                                    description:
-                                      "A remote URL for downloading this Pack's executable code",
-                                    type: "string",
-                                  },
-                                  signature: {
-                                    description:
-                                      "A sha-256 signature of the remote URL's content",
-                                    type: "string",
-                                  },
-                                },
-                                required: ["source", "signature"],
-                              },
-                              capture: {
-                                description:
-                                  "Describes the data this pack intends to capture",
-                                type: "object",
-                                additionalProperties: {
-                                  type: "object",
-                                  properties: {
-                                    type: {
-                                      description:
-                                        "The type of data to capture",
-                                      anyOf: [
-                                        {
-                                          const: "string",
-                                          type: "string",
-                                        },
-                                        {
-                                          const: "number",
-                                          type: "string",
-                                        },
-                                      ],
-                                    },
-                                    description: {
-                                      type: "string",
-                                    },
-                                  },
-                                  required: ["type", "description"],
-                                },
-                              },
-                              permissions: {
-                                description:
-                                  "The permissions requested for this pack",
-                                type: "object",
-                                properties: {
-                                  domains: {
-                                    description:
-                                      "The domains this pack is allowed to request data from as regular expressions.",
-                                    type: "array",
-                                    items: {
-                                      type: "string",
-                                    },
-                                  },
-                                  environment: {
-                                    description:
-                                      "The environment variables this pack is allowed to access on the host system",
-                                    type: "array",
-                                    items: {
-                                      type: "string",
-                                    },
-                                  },
-                                  request: {
-                                    description:
-                                      "During the lifecycle, request access to additional properties such as 'headers' and 'body'",
-                                    type: "array",
-                                    items: {
-                                      type: "string",
-                                    },
-                                  },
-                                  response: {
-                                    description:
-                                      "During the lifecycle, response access to additional properties such as 'headers' and 'body'",
-                                    type: "array",
-                                    items: {
-                                      type: "string",
-                                    },
-                                  },
-                                },
-                              },
+                      {
+                        _def: {
+                          unknownKeys: "strip",
+                          catchall: {
+                            _def: {
+                              typeName: "ZodNever",
                             },
-                            required: [
-                              "schema",
-                              "name",
-                              "version",
-                              "description",
-                              "url",
-                              "capture",
-                              "permissions",
-                            ],
                           },
+                          typeName: "ZodObject",
+                          description: "A valid Taskless cloud configuration",
                         },
+                        _cached: null,
                       },
-                      required: ["schema", "organizationId", "packs"],
-                    },
-                  ],
+                    ],
+                    typeName: "ZodUnion",
+                  },
                 },
               },
             },
@@ -373,164 +81,16 @@ export default {
             content: {
               "application/json": {
                 schema: {
-                  type: "object",
-                  properties: {
-                    error: {
-                      type: "string",
-                    },
-                    message: {
-                      type: "string",
-                    },
-                  },
-                  required: ["error", "message"],
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-    "/public/config": {
-      get: {
-        responses: {
-          "200": {
-            description: "A valid Taskless cloud configuration",
-            content: {
-              "application/json": {
-                schema: {
-                  description: "A valid Taskless cloud configuration",
-                  type: "object",
-                  properties: {
-                    schema: {
-                      description: "The config schema version used",
-                      type: "string",
-                      enum: ["pre1"],
-                    },
-                    organizationId: {
-                      type: "string",
-                    },
-                    packs: {
-                      type: "array",
-                      items: {
-                        description:
-                          "A pack delivered from the Taskless cloud, including information on how to retrieve the pack's runtime code",
-                        type: "object",
-                        properties: {
-                          schema: {
-                            description: "The pack schema version used",
-                            type: "string",
-                            enum: ["pre1"],
-                          },
-                          name: {
-                            description: "The pack name",
-                            type: "string",
-                          },
-                          version: {
-                            description: "The pack version",
-                            type: "string",
-                          },
-                          description: {
-                            description: "The pack description",
-                            type: "string",
-                          },
-                          url: {
-                            description:
-                              "When a pack's excutable code is hosted remotely, this object describes how to download and verify it",
-                            type: "object",
-                            properties: {
-                              source: {
-                                description:
-                                  "A remote URL for downloading this Pack's executable code",
-                                type: "string",
-                              },
-                              signature: {
-                                description:
-                                  "A sha-256 signature of the remote URL's content",
-                                type: "string",
-                              },
-                            },
-                            required: ["source", "signature"],
-                          },
-                          capture: {
-                            description:
-                              "Describes the data this pack intends to capture",
-                            type: "object",
-                            additionalProperties: {
-                              type: "object",
-                              properties: {
-                                type: {
-                                  description: "The type of data to capture",
-                                  anyOf: [
-                                    {
-                                      const: "string",
-                                      type: "string",
-                                    },
-                                    {
-                                      const: "number",
-                                      type: "string",
-                                    },
-                                  ],
-                                },
-                                description: {
-                                  type: "string",
-                                },
-                              },
-                              required: ["type", "description"],
-                            },
-                          },
-                          permissions: {
-                            description:
-                              "The permissions requested for this pack",
-                            type: "object",
-                            properties: {
-                              domains: {
-                                description:
-                                  "The domains this pack is allowed to request data from as regular expressions.",
-                                type: "array",
-                                items: {
-                                  type: "string",
-                                },
-                              },
-                              environment: {
-                                description:
-                                  "The environment variables this pack is allowed to access on the host system",
-                                type: "array",
-                                items: {
-                                  type: "string",
-                                },
-                              },
-                              request: {
-                                description:
-                                  "During the lifecycle, request access to additional properties such as 'headers' and 'body'",
-                                type: "array",
-                                items: {
-                                  type: "string",
-                                },
-                              },
-                              response: {
-                                description:
-                                  "During the lifecycle, response access to additional properties such as 'headers' and 'body'",
-                                type: "array",
-                                items: {
-                                  type: "string",
-                                },
-                              },
-                            },
-                          },
-                        },
-                        required: [
-                          "schema",
-                          "name",
-                          "version",
-                          "description",
-                          "url",
-                          "capture",
-                          "permissions",
-                        ],
+                  _def: {
+                    unknownKeys: "strip",
+                    catchall: {
+                      _def: {
+                        typeName: "ZodNever",
                       },
                     },
+                    typeName: "ZodObject",
                   },
-                  required: ["schema", "organizationId", "packs"],
+                  _cached: null,
                 },
               },
             },
@@ -548,46 +108,28 @@ export default {
                 additionalProperties: {
                   type: "array",
                   items: {
-                    anyOf: [
-                      {
-                        type: "object",
-                        properties: {
-                          seq: {
-                            description:
-                              "The sequence ID (uuid v7 as an unsighed 128-bit integer)",
-                            type: "string",
-                          },
-                          dim: {
-                            description: "The dimension key",
-                            type: "string",
-                          },
-                          str: {
-                            description: "The dimension value as a string",
-                            type: "string",
-                          },
-                        },
-                        required: ["seq", "dim", "str"],
+                    type: "object",
+                    properties: {
+                      seq: {
+                        type: "string",
+                        description:
+                          "The sequence ID (uuid v7 as an unsigned 128-bit integer)",
                       },
-                      {
-                        type: "object",
-                        properties: {
-                          seq: {
-                            description:
-                              "The sequence ID (uuid v7 as an unsighed 128-bit integer)",
-                            type: "string",
-                          },
-                          dim: {
-                            description: "The dimension key",
-                            type: "string",
-                          },
-                          num: {
-                            description: "The dimension value as a number",
-                            type: "string",
-                          },
-                        },
-                        required: ["seq", "dim", "num"],
+                      dim: {
+                        type: "string",
+                        description: "The dimension key",
                       },
-                    ],
+                      str: {
+                        type: "string",
+                        description: "The dimension value as a string",
+                      },
+                      num: {
+                        type: "string",
+                        description: "The dimension value as a number",
+                      },
+                    },
+                    required: ["seq", "dim"],
+                    additionalProperties: false,
                   },
                 },
               },
@@ -598,13 +140,11 @@ export default {
           {
             schema: {
               type: "string",
-              enum: ["v1"],
             },
             in: "path",
             name: "version",
             required: true,
-            description:
-              "The schema version of the config to retrieve. Currently only 'v1' is supported.",
+            description: "The schema version of the config to retrieve.",
           },
           {
             schema: {
@@ -622,14 +162,137 @@ export default {
             content: {
               "application/json": {
                 schema: {
-                  type: "object",
-                  properties: {
-                    received: {
-                      description: "The number of events received",
-                      type: "number",
+                  _def: {
+                    unknownKeys: "strip",
+                    catchall: {
+                      _def: {
+                        typeName: "ZodNever",
+                      },
                     },
+                    typeName: "ZodObject",
                   },
-                  required: ["received"],
+                  _cached: null,
+                },
+              },
+            },
+          },
+          "404": {
+            description: "Default Response",
+            content: {
+              "application/json": {
+                schema: {
+                  _def: {
+                    unknownKeys: "strip",
+                    catchall: {
+                      _def: {
+                        typeName: "ZodNever",
+                      },
+                    },
+                    typeName: "ZodObject",
+                  },
+                  _cached: null,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    "/public/config": {
+      get: {
+        responses: {
+          "200": {
+            description: "A valid Taskless cloud configuration",
+            content: {
+              "application/json": {
+                schema: {
+                  _def: {
+                    unknownKeys: "strip",
+                    catchall: {
+                      _def: {
+                        typeName: "ZodNever",
+                      },
+                    },
+                    typeName: "ZodObject",
+                    description: "A valid Taskless cloud configuration",
+                  },
+                  _cached: null,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    "/public/{version}/config": {
+      get: {
+        parameters: [
+          {
+            schema: {
+              type: "string",
+            },
+            in: "path",
+            name: "version",
+            required: true,
+            description: "The schema version of the config to retrieve.",
+          },
+        ],
+        responses: {
+          "200": {
+            description: "Default Response",
+            content: {
+              "application/json": {
+                schema: {
+                  _def: {
+                    options: [
+                      {
+                        _def: {
+                          unknownKeys: "strip",
+                          catchall: {
+                            _def: {
+                              typeName: "ZodNever",
+                            },
+                          },
+                          typeName: "ZodObject",
+                          description: "A valid Taskless cloud configuration",
+                        },
+                        _cached: null,
+                      },
+                      {
+                        _def: {
+                          unknownKeys: "strip",
+                          catchall: {
+                            _def: {
+                              typeName: "ZodNever",
+                            },
+                          },
+                          typeName: "ZodObject",
+                          description: "A valid Taskless cloud configuration",
+                        },
+                        _cached: null,
+                      },
+                    ],
+                    typeName: "ZodUnion",
+                  },
+                },
+              },
+            },
+          },
+          "404": {
+            description: "Default Response",
+            content: {
+              "application/json": {
+                schema: {
+                  _def: {
+                    unknownKeys: "strip",
+                    catchall: {
+                      _def: {
+                        typeName: "ZodNever",
+                      },
+                    },
+                    typeName: "ZodObject",
+                  },
+                  _cached: null,
                 },
               },
             },

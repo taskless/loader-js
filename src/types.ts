@@ -1,8 +1,8 @@
-import { type OASInput, type NormalizeOAS, type OASOutput } from "fets";
+import { type OASInput, type NormalizeOAS } from "fets";
 import { type SetupServerApi } from "msw/node";
-import { type Config } from "./__generated__/config.js";
 import { type Manifest } from "./__generated__/manifest.js";
 import { type Pack } from "./__generated__/pack.js";
+import { type Schema } from "./__generated__/schema.js";
 import type openapi from "./__generated__/openapi.js";
 
 export function isDefined<T>(value: T): value is NonNullable<T> {
@@ -84,12 +84,12 @@ export type TasklessAPI = {
 /** Pack sends collection */
 export type Permissions = Pack["permissions"];
 
-export function isConfig(value?: unknown): value is Config {
+export function isConfig(value?: unknown): value is Schema {
   if (!value || typeof value !== "object" || value === null) {
     return false;
   }
 
-  const check = value as Config;
+  const check = value as Schema;
 
   if (
     check.organizationId !== undefined &&

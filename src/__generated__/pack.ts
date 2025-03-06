@@ -6,25 +6,38 @@
  */
 
 /**
- * A pack delivered from the Taskless cloud, including information on how to retrieve the pack's runtime code
+ * The core pack schema that all packs must adhere to. This schema is extended by other schemas
  */
 export interface Pack {
   /**
    * The pack schema version used
    */
-  schema: "pre1";
+  schema: "pre2";
   /**
    * The pack name
    */
   name: string;
   /**
-   * The pack version
+   * The pack version, using semantic versioning conventions
    */
   version: string;
   /**
-   * The pack description
+   * A short description of the pack's functionality
    */
   description: string;
+  /**
+   * The permissions requested for this pack from the host system
+   */
+  permissions: {
+    /**
+     * The environment variables this pack is allowed to access on the host system
+     */
+    environment?: string[];
+    /**
+     * Whether this pack can access the request and response body
+     */
+    body?: boolean;
+  };
   /**
    * When a pack's excutable code is hosted remotely, this object describes how to download and verify it
    */
@@ -37,46 +50,11 @@ export interface Pack {
      * A sha-256 signature of the remote URL's content
      */
     signature: string;
-    [k: string]: unknown;
   };
   /**
-   * Describes the data this pack intends to capture
+   * The user's configuration for this pack
    */
-  capture: {
-    /**
-     * This interface was referenced by `undefined`'s JSON-Schema definition
-     * via the `patternProperty` "^(.*)$".
-     */
-    [k: string]: {
-      /**
-       * The type of data to capture
-       */
-      type: "string" | "number";
-      description: string;
-      [k: string]: unknown;
-    };
-  };
-  /**
-   * The permissions requested for this pack
-   */
-  permissions: {
-    /**
-     * The domains this pack is allowed to request data from as regular expressions.
-     */
-    domains?: string[];
-    /**
-     * The environment variables this pack is allowed to access on the host system
-     */
-    environment?: string[];
-    /**
-     * During the lifecycle, request access to additional properties such as 'headers' and 'body'
-     */
-    request?: string[];
-    /**
-     * During the lifecycle, response access to additional properties such as 'headers' and 'body'
-     */
-    response?: string[];
+  configuration?: {
     [k: string]: unknown;
   };
-  [k: string]: unknown;
 }
