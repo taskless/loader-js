@@ -1,5 +1,11 @@
 # @taskless/loader
 
+## 0.0.29
+
+### Patch Changes
+
+- 900fd65: Fixes header passing to webassembly
+
 ## 0.0.28
 
 ### Patch Changes
