@@ -39,7 +39,7 @@ const createSandbox = async (
       url: info.request.url,
       domain: new URL(info.request.url).hostname,
       path: new URL(info.request.url).pathname,
-      headers: Object.fromEntries(info.request.headers.entries()),
+      headers: [...info.request.headers.entries()],
       body: pack.permissions?.body
         ? await extractBody(info.request)
         : undefined,

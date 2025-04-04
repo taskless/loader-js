@@ -45,6 +45,7 @@ describe("Taskless environment and importing (requires build)", () => {
     expect(stdout).toMatch(/initialized taskless/i);
   });
 
+  // TODO: Flaky test. Hono gets torn down before the request is sent
   test("Autoloader calls taskless with an API key", async ({
     hono,
     expect,
