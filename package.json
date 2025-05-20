@@ -44,7 +44,7 @@
   "dependencies": {
     "@extism/extism": "2.0.0-rc9",
     "fets": "^0.8.5",
-    "msw": "^2.7.3",
+    "msw": "^2.8.2",
     "pkg-dir": "^8.0.0",
     "uint8array-extras": "^1.4.0",
     "uuid": "^11.1.0"

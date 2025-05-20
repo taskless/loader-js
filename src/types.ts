@@ -72,7 +72,6 @@ export type InitOptions = {
 export type TasklessAPI = {
   logger: Logger;
   add(manifest: Manifest, wasm: ArrayBuffer): void;
-  addDefaultPacks(): void;
   flush(): Promise<void>;
   flushSync(): void;
   load(): Promise<{

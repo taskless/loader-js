@@ -4,7 +4,6 @@ import { Worker } from "node:worker_threads";
 import { createPlugin, type Plugin } from "@extism/extism";
 import { type Manifest } from "@~/__generated__/manifest.js";
 import { type Pack } from "@~/__generated__/pack.js";
-import { publicConfig } from "@~/__generated__/publicConfig.js";
 import { type Schema } from "@~/__generated__/schema.js";
 import {
   bypass,
@@ -63,7 +62,6 @@ const createThrowable =
 /** A default no-op API */
 const createErrorAPI = <T extends Error>(error: T): TasklessAPI => ({
   add: createThrowable(error),
-  addDefaultPacks: createThrowable(error),
   flush: createThrowable(error),
   flushSync: createThrowable(error),
   logger: createThrowable(error) as unknown as Logger,
@@ -468,14 +466,6 @@ export const taskless = (
       moduleSource.set(ident, wasm);
     },
 
-    addDefaultPacks() {
-      for (const pack of publicConfig.packs) {
-        const ident = packIdentifier(pack as Pack);
-        packs.push(pack as Pack);
-        moduleSource.set(ident, readFile(`${ROOT}/${pack.url.source}`));
-      }
-    },
-
     /** get the current logger */
     logger,
 
@@ -517,10 +507,6 @@ export const autoload = (secret?: string, options?: InitOptions) => {
   const t = taskless(secret, options);
   t.logger.debug("Initialized Taskless");
   try {
-    if (!secret) {
-      t.addDefaultPacks();
-    }
-
     t.load()
       .then(() => {
         t.logger.debug("Taskless Autoloader ran successfully");

@@ -69,6 +69,10 @@ type Callbacks = {
   onError: onErrorCallback;
 };
 
+const isDefined = <T>(value: T | undefined): value is T => {
+  return value !== undefined;
+};
+
 /**
  * Run a sandbox with the given packs, returning the final response.
  * This is where the wasm plugins are ran on either side of the request, and simplifies the
@@ -127,10 +131,32 @@ export const runSandbox = async (
     }
   }
 
-  // run request
+  // run request, convert the raw response (remove compression related headers for compatibility with axios, etc)
   const finalizedRequest = request.clone();
   finalizedRequest.headers.set("x-tskl-bypass", "1");
-  const fetchResponse = await fetch(finalizedRequest);
+  const rawResponse = await fetch(finalizedRequest);
+
+  const newHeaders: Array<[string, string]> = [...rawResponse.headers.entries()]
+    .map(([key, value]) => {
+      // remove content encoding
+      if (key === "content-encoding") {
+        return undefined;
+      }
+
+      // remove content length (with fetch unpacking, we must rely on native header interpretation)
+      if (key === "content-length") {
+        return undefined;
+      }
+
+      return [key, value] as [string, string];
+    })
+    .filter(isDefined);
+
+  const fetchResponse = new Response(rawResponse.body, {
+    status: rawResponse.status,
+    statusText: rawResponse.statusText,
+    headers: newHeaders,
+  });
 
   // run packs backwards
   logger.debug(`[${requestId}] (post) running sandbox`);

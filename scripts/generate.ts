@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable n/no-process-env */
 import { readFileSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
@@ -82,47 +79,6 @@ await Promise.all(
           "Manifest"
         );
         return prettier.format(ts, prettierOptions);
-      }
-    ),
-    downloadFile(
-      new URL(`${base}/public/pre2/config`),
-      "publicConfig.ts",
-      async (contents) => {
-        const configuration = JSON.parse(contents);
-
-        const seen = new Set<string>();
-
-        await Promise.all(
-          (configuration.packs ?? []).map(async (pack: any) => {
-            const url = new URL(pack.url.source);
-            const packId = `${url.pathname.split("/")[1]}.wasm`;
-
-            if (seen.has(packId)) return;
-            seen.add(packId);
-
-            console.log(`Downloading wasm pack for: ${pack.name}...`);
-
-            // fetch the binary data and save it in the current directory as packId
-            const wasmResponse = await fetch(url.toString());
-            const wasm = await wasmResponse.arrayBuffer();
-            await writeFile(resolve(WASM, packId), Buffer.from(wasm));
-
-            // replace pack by reference
-            pack.url.source = `./wasm/${packId}`;
-          })
-        );
-
-        return prettier.format(
-          `
-            /* eslint-disable */
-            import { type Schema } from "./schema.js";
-
-            const publicConfig: Schema = ${JSON.stringify(configuration, null, 2)};
-
-            export { publicConfig };
-          `,
-          prettierOptions
-        );
       }
     ),
   ].map(async (exec) => exec())

@@ -6,7 +6,7 @@ import {
   type Logger,
   type PluginOutput,
 } from "@~/types.js";
-import { http, type StrictResponse } from "msw";
+import { http, type HttpResponse } from "msw";
 import { id } from "./id.js";
 import { runSandbox } from "./sandbox.js";
 
@@ -93,5 +93,5 @@ export const createHandler = ({
       logger.data(JSON.stringify(logItem));
     }
 
-    return response as StrictResponse<any>;
+    return response;
   });
