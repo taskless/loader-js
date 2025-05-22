@@ -1,0 +1,9 @@
+{
+  "schema": "pre2",
+  "name": "testpack",
+  "version": "0.0.1",
+  "description": "Test pack, never published to prod",
+  "permissions": {},
+  "fields": [],
+  "charts": []
+}

@@ -1,7 +1,5 @@
-import { readFile } from "node:fs/promises";
 import { serve, type ServerType } from "@hono/node-server";
-import { publicConfig } from "@~/__generated__/publicConfig.js";
-import { ROOT } from "@~/constants.js";
+import { bypass } from "@~/constants.js";
 import getPort from "get-port";
 import { Hono } from "hono";
 import { afterEach, type test } from "vitest";
@@ -21,53 +19,39 @@ export const withHono = <T extends typeof test>(t: T) => {
       const app = new Hono();
       const port = await getPort();
       const server = serve({ fetch: app.fetch, port });
+
+      await new Promise<void>((resolve) => {
+        server.on("listening", () => {
+          resolve();
+        });
+      });
+
       await use({ server, app, port });
     },
   });
 
   // use an afterEach hook to ensure hono is cleaned up
   afterEach<HonoContext>(async ({ hono }) => {
-    await new Promise<void>((resolve) => {
-      if (hono) {
-        hono.server.removeAllListeners();
-        hono.server.unref();
-        hono.server.close(() => {
-          resolve();
-        });
-      } else {
-        resolve();
-      }
-    });
+    if (hono) {
+      hono.server.removeAllListeners();
+      hono.server.unref();
+      hono.server.close();
+    }
   });
 
   return next;
 };
 
 export const defaultConfig = (app: Hono) => {
-  app.get("/pre2/config", (c) => {
-    const u = new URL(c.req.url);
-    const base = `${u.protocol}//${u.host}`;
-    const modifiedConfig = structuredClone(publicConfig);
-    modifiedConfig.packs = modifiedConfig.packs.map((pack) => {
-      pack.url.source = `${base}/${pack.url.source.replace(/^\.\//, "")}`;
-      return pack;
-    });
-
-    return c.json(modifiedConfig);
-  });
-};
-
-export const anyWasm = (app: Hono) => {
-  app.get("/wasm/:id", async (c) => {
-    // console.log(`serving wasm: ${c.req.param("id")}`);
-    const file = await readFile(`${ROOT}/wasm/${c.req.param("id")}`);
-
-    return new Response(file, {
-      status: 200,
+  app.get("/pre2/config", async (c) => {
+    const rawConfig = await fetch("https://data.tskl.es/public/config", {
       headers: {
-        "Content-Type": "application/wasm",
+        ...bypass,
       },
     });
+    const config = (await rawConfig.json()) as unknown;
+
+    return c.json(config as any);
   });
 };
 

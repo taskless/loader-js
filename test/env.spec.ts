@@ -1,14 +1,20 @@
 import { dirname, resolve } from "node:path";
+import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { execa } from "execa";
 import { vi, test as vitest, afterEach, describe, beforeAll } from "vitest";
 import { taskless } from "../src/core.js";
-import { anyWasm, defaultConfig, withHono } from "./helpers/server.js";
+import { defaultConfig, withHono } from "./helpers/server.js";
 
 const test = withHono(vitest);
 
 describe("Taskless environment and importing (requires build)", () => {
   beforeAll(async () => {
+    if (process.env.NO_BUILD === "1") {
+      console.log("Skipping build step");
+      return;
+    }
+
     const { stdout, stderr } = await execa({
       preferLocal: true,
       cwd: resolve(dirname(fileURLToPath(import.meta.url)), "../"),
@@ -45,7 +51,6 @@ describe("Taskless environment and importing (requires build)", () => {
     expect(stdout).toMatch(/initialized taskless/i);
   });
 
-  // TODO: Flaky test. Hono gets torn down before the request is sent
   test("Autoloader calls taskless with an API key", async ({
     hono,
     expect,
@@ -56,7 +61,6 @@ describe("Taskless environment and importing (requires build)", () => {
     ].join(";");
 
     defaultConfig(hono.app);
-    anyWasm(hono.app);
 
     const eventListener = vi.fn();
 
@@ -77,10 +81,7 @@ describe("Taskless environment and importing (requires build)", () => {
         TASKLESS_OPTIONS,
       },
       cwd: resolve(dirname(fileURLToPath(import.meta.url)), "../"),
-    })`node --import=./dist/index.js test/fixtures/one.js`;
-
-    // console.log(stdout);
-    // console.log(stderr);
+    })`node --import=./dist/index.js ./test/fixtures/one.js`;
 
     expect(stdout).toMatch(/initialized taskless/i);
     expect(stdout).toMatch(/taskless autoloader ran successfully/i);

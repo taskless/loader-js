@@ -2,7 +2,11 @@ import { readFile } from "node:fs/promises";
 import { type Schema } from "@~/__generated__/schema.js";
 import { ROOT } from "@~/constants.js";
 import { taskless } from "@~/core.js";
-import { type ConsolePayload, type NetworkPayload } from "@~/types.js";
+import {
+  type Manifest,
+  type ConsolePayload,
+  type NetworkPayload,
+} from "@~/types.js";
 import { http } from "msw";
 import { setupServer } from "msw/node";
 import { describe, test, vi } from "vitest";
@@ -63,20 +67,15 @@ describe("Loading packs", () => {
       },
     });
 
-    // this test should break if our wasm deviates
-    const file = await readFile(
-      `${ROOT}/wasm/0191e2e7-8da6-7558-915d-4a2ecc82472b.wasm`
-    );
+    // load local test files
+    const manifest = await readFile(`${ROOT}/test/wasm/manifest.json`);
+    const wasm = await readFile(`${ROOT}/test/wasm/pack.wasm`);
 
     t.add(
       {
-        schema: "pre2",
-        name: "test",
-        description: "test pack",
-        version: "1.0.0",
-        permissions: {},
+        ...(JSON.parse(manifest.toString()) as Manifest),
       },
-      file
+      wasm
     );
 
     // validate load
@@ -111,22 +110,27 @@ describe("Loading packs", () => {
     await t.flush();
 
     const log = logs[0];
+    // console.log(JSON.stringify(logs, null, 2));
 
     expect(
-      log.dimensions.some((d) => d.name === "test/status" && d.value === "200"),
-      "Logs status"
+      log.dimensions.some(
+        (d) => d.name === "testpack/testPre" && d.value === "preTest"
+      ),
+      "Logs pre test capture"
     ).toBe(true);
 
     expect(
       log.dimensions.some(
-        (d) => d.name === "test/url" && d.value === "https://example.com/sample"
+        (d) => d.name === "testpack/testPost" && d.value === "postTest"
       ),
-      "Logs URL"
+      "Logs post test capture"
     ).toBe(true);
 
     expect(
       await reply.text(),
       "Successfully calls external service (msw)"
     ).toBe("Hello world!");
+
+    msw.close();
   });
 });
