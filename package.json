@@ -1,7 +1,7 @@
 {
   "name": "@taskless/loader",
   "description": "Taskless Loader - Take control of your third party APIs",
-  "version": "0.0.29",
+  "version": "0.0.30",
   "author": "Taskless",
   "license": "Apache-2.0",
   "repository": "taskless/loader-js",

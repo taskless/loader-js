@@ -1,5 +1,15 @@
 # @taskless/loader
 
+## 0.0.30
+
+### Patch Changes
+
+- d464263: BREAKING Fixes axios bug & removes default pack configuration
+
+  - Fixes an issue with axios that caused an error when native fetch would decompress a response but leave headers intact
+  - Removed the default "core" pack. This caused confusion where users thought they were using the core pack instead of the bundled pack, resulting in no dashboards on taskless.io. The `addDefaultPacks` method was also removed
+  - If you were using a default pack, you will need to manually download the manifest from https://data.tskl.es/public/config for use in your application.
+
 ## 0.0.29
 
 ### Patch Changes
