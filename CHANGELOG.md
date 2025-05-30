@@ -1,5 +1,11 @@
 # @taskless/loader
 
+## 0.0.31
+
+### Patch Changes
+
+- 2517af9: Upgrades extism SDK to latest - The Extism SDK must be upgraded in order to provide required host functions for the latest PDK
+
 ## 0.0.30
 
 ### Patch Changes
