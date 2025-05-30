@@ -165,7 +165,7 @@ export type PluginInput<
     body?: TResponseBody;
   };
   context: TContext;
-};
+} & Pick<Pack, "configuration">;
 
 export type PluginOutput<TContext = unknown> = {
   capture?: Record<string, string | number>;

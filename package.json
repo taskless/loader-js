@@ -42,7 +42,7 @@
     "wasm"
   ],
   "dependencies": {
-    "@extism/extism": "2.0.0-rc9",
+    "@extism/extism": "2.0.0-rc13",
     "fets": "^0.8.5",
     "msw": "^2.8.2",
     "pkg-dir": "^8.0.0",
