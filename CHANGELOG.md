@@ -1,5 +1,11 @@
 # @taskless/loader
 
+## 0.0.32
+
+### Patch Changes
+
+- Fixes empty context objects
+
 ## 0.0.31
 
 ### Patch Changes

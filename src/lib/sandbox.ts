@@ -47,7 +47,7 @@ const createSandbox = async (
     response: info.response
       ? {
           status: info.response.status,
-          headers: Object.fromEntries(info.response.headers.entries()),
+          headers: [...info.response.headers.entries()],
           body: pack.permissions?.body
             ? await extractBody(info.response)
             : undefined,
@@ -113,20 +113,26 @@ export const runSandbox = async (
         )
       );
 
-      // logger.debug(`[${requestId}] pack ran`);
+      if (output) {
+        const result = output?.json() as PluginOutput;
 
-      const result = output?.json() as PluginOutput;
+        if (result.context) {
+          context[`${index}`] = result.context;
+        }
 
-      if (result.context) {
-        context[`${index}`] = result.context;
+        await callbacks.onResult(pack, result);
+        logger.debug(`[${requestId}] (pre) pack ${pack.name} completed`);
+      } else {
+        logger.debug(
+          `[${requestId}] (pre) pack ${pack.name} no output returned`
+        );
       }
-
-      await callbacks.onResult(pack, result);
     })
   );
 
   for (const hook of preHooks) {
     if (hook.status === "rejected") {
+      logger.error(`${hook.reason}`);
       callbacks.onError(hook.reason);
     }
   }
@@ -180,18 +186,25 @@ export const runSandbox = async (
         )
       );
 
-      const result = output?.json() as PluginOutput;
+      if (output) {
+        const result = output?.json() as PluginOutput;
+        if (result.context) {
+          context[`${index}`] = result.context;
+        }
 
-      if (result.context) {
-        context[`${index}`] = result.context;
+        await callbacks.onResult(pack, result);
+        logger.debug(`[${requestId}] (post) pack ${pack.name} completed`);
+      } else {
+        logger.debug(
+          `[${requestId}] (post) pack ${pack.name} no output returned`
+        );
       }
-
-      await callbacks.onResult(pack, result);
     })
   );
 
   for (const hook of postHooks) {
     if (hook.status === "rejected") {
+      logger.error(`${hook.reason}`);
       callbacks.onError(hook.reason);
     }
   }
