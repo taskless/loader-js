@@ -6,7 +6,7 @@ import process from "node:process";
 import { TASKLESS_HOST } from "@~/constants.js";
 import { compile, type JSONSchema } from "json-schema-to-typescript";
 import { mkdirp } from "mkdirp";
-import { packageDirectory } from "pkg-dir";
+import { packageDirectory } from "package-directory";
 import prettier from "prettier";
 import { rimraf } from "rimraf";
 

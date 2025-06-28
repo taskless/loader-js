@@ -16,12 +16,16 @@ export function isLogLevel(value: unknown): value is LogLevel {
   );
 }
 
+export function isOutput(value: unknown): value is Output {
+  return typeof value === "string" && ["network", "console"].includes(value);
+}
+
 export type MaybePromise<T> = T | Promise<T>;
 
 export { type Pack } from "./__generated__/pack.js";
 export { type Manifest } from "./__generated__/manifest.js";
 
-type LogLevel = "trace" | "debug" | "info" | "warn" | "error";
+export type LogLevel = "trace" | "debug" | "info" | "warn" | "error";
 
 export type Logger = {
   trace?: (message: string) => void;
@@ -32,16 +36,21 @@ export type Logger = {
   data: (ndjson: string) => void;
 };
 
+export type Output = "network" | "console";
+
 export type InitOptions = {
   /**
-   * Disable the network by setting this to `false` logs will be output
-   * via the value of options.log at the `info` level
+   * Load Taskless packs from a local directory
    */
-  network?: boolean;
+  directory?: string;
   /**
-   * Specify an endpoint for receiving Taskless data. Defaults to "https://data.tskl.es"
+   * Specify an endpoint for the Taskless Cloud requests. Defaults to "https://data.tskl.es"
    */
   endpoint?: string;
+  /**
+   * Set a flush interval different from the default 2000ms
+   */
+  flushInterval?: number;
   /**
    * Override the logging object, defaults to console for all operations
    */
@@ -51,13 +60,11 @@ export type InitOptions = {
    */
   logLevel?: LogLevel;
   /**
-   * Force logging of all data elements requests, even when network is enabled. Defaults to !network
+   * Change the default output of Taskless telemetry data.
+   * If you've provided an API key, this will default to `["network"]`.
+   * If you have not provided an API key, this will default to `["console"].
    */
-  logging?: boolean;
-  /**
-   * Set a flush interval different from the default 2000ms
-   */
-  flushInterval?: number;
+  output?: Output[];
   /**
    * Experimental options for Taskless
    */
@@ -71,7 +78,7 @@ export type InitOptions = {
 
 export type TasklessAPI = {
   logger: Logger;
-  add(manifest: Manifest, wasm: ArrayBuffer): void;
+  add(pack: Pack, wasm: ArrayBuffer): void;
   flush(): Promise<void>;
   flushSync(): void;
   load(): Promise<{

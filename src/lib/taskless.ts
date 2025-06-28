@@ -11,7 +11,6 @@ import {
   noop,
   TASKLESS_HOST,
   emptyConfig,
-  ROOT,
 } from "@~/constants.js";
 import {
   type InitOptions,
@@ -23,6 +22,7 @@ import {
   type MaybePromise,
 } from "@~/types.js";
 import { createClient, type NormalizeOAS } from "fets";
+import { glob } from "glob";
 import { setupServer } from "msw/node";
 import { InitializationError } from "./error.js";
 import { createHandler } from "./handler.js";
@@ -76,6 +76,21 @@ const loaded = new Promise<boolean>((resolve) => {
   setLoaded = resolve;
 });
 
+/** @deprecated */
+type DeprecatedInitOptions = {
+  /**
+   * @deprecated Use `output` instead as "output": ["network"]
+   * Disable the network by setting this to `false` logs will be output
+   * via the value of options.log at the `info` level
+   */
+  network?: boolean;
+  /**
+   * @deprecated Use `output` instead as "output": ["console"]
+   * Force logging of all data elements requests, even when network is enabled. Defaults to !network
+   */
+  logging?: boolean;
+};
+
 /**
  * Taskless
  * Create an instance of the Taskless loader, retrieve remote configurations,
@@ -83,14 +98,30 @@ const loaded = new Promise<boolean>((resolve) => {
  */
 export const taskless = (
   secret?: string,
-  options?: InitOptions
+  options?: InitOptions & DeprecatedInitOptions
 ): TasklessAPI => {
-  // Network opt-in or secret required
-  const useNetwork = Boolean(options?.network ?? (secret && secret.length > 0));
+  // deprecated values
+  const useDeprecatedOptions =
+    options?.network !== undefined || options?.logging !== undefined;
+  const deprecatedNetworkOption = Boolean(
+    options?.network ?? (secret && secret.length > 0)
+  );
+  const deprecatedLoggingOption = Boolean(
+    options?.logging ?? !deprecatedNetworkOption
+  );
 
-  // prefer explicit set, defaulting to the inverse of useNetwork
-  const useLogging =
-    options?.logging === undefined ? !useNetwork : Boolean(options.logging);
+  const defaultNetwork =
+    Boolean(secret) && typeof secret === "string" && secret.length > 0;
+  const defaultOutput = [defaultNetwork ? "network" : "console"];
+  const outputOption = options?.output ?? defaultOutput;
+
+  // finalize network and logging options
+  const useNetwork = useDeprecatedOptions
+    ? deprecatedNetworkOption
+    : outputOption.includes("network");
+  const useLogging = useDeprecatedOptions
+    ? deprecatedLoggingOption
+    : outputOption.includes("console");
 
   const activeEndpoint = (options?.endpoint ?? TASKLESS_HOST).replace(
     /\/$/,
@@ -115,11 +146,8 @@ export const taskless = (
       `  - Network: ${useNetwork}`,
       `  - Logging: ${useLogging}`,
       `  - Endpoint: ${activeEndpoint}`,
-      `Original Options:`,
-      `  - Network: ${options?.network}`,
-      `  - Logging: ${options?.logging}`,
-      `  - Endpoint: ${options?.endpoint}`,
-      `  - Log Level: ${options?.logLevel}`,
+      `  - Directory: ${options?.directory ?? "none"}`,
+      `  - Flush interval: ${options?.flushInterval ?? DEFAULT_FLUSH_INTERVAL}ms`,
     ].join("\n")
   );
 
@@ -358,6 +386,57 @@ export const taskless = (
     // copy packs from the config into module source
     const config = await promisedConfig;
     const seen = new Set<string>();
+
+    if (options?.directory) {
+      logger.debug("Initializing local packs from directory");
+      const { directory } = options;
+
+      // glob the dir for manifest.json files
+      // for each hit, load a manifest, config, and wasm file
+      // merge the manifest with the config
+      // packs push of the finalized pack
+      // set the module source to the wasm file
+      const results = await glob(`${directory}/**/manifest.json`, {
+        absolute: true,
+      });
+
+      try {
+        await Promise.all(
+          results.map(async (manifestPath) => {
+            const configPath = manifestPath.replace(
+              /manifest\.json$/,
+              "config.json"
+            );
+            const wasmPath = manifestPath.replace(
+              /manifest\.json$/,
+              "pack.wasm"
+            );
+            try {
+              const manifestContents = await readFile(manifestPath, "utf8");
+              const manifest = JSON.parse(manifestContents) as Manifest;
+              const configContents = await readFile(configPath, "utf8");
+              const config = JSON.parse(configContents) as {
+                configuration: Pack["configuration"];
+                url: Pack["url"];
+              };
+              const wasmContents = readFile(wasmPath);
+              const pack: Pack = {
+                ...config,
+                ...manifest,
+              };
+              const ident = packIdentifier(pack);
+              seen.add(ident);
+              packs.push(pack);
+              moduleSource.set(ident, wasmContents);
+            } catch (error) {
+              console.warn(error instanceof Error ? error.message : error);
+            }
+          })
+        );
+      } catch {
+        // errors were logged to console, but do not block the load or crash the app
+      }
+    }
 
     if (config) {
       logger.debug("Initializing remote packs");

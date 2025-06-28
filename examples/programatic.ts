@@ -1,9 +1,9 @@
 import { readFileSync } from "fs";
 import { resolve } from "path";
-import { packageDirectorySync } from "pkg-dir";
+import { packageDirectorySync } from "package-directory";
 
 // import { taskless } from "@taskless/core";
-import { taskless, type Manifest } from "../src/core.js";
+import { Pack, taskless, type Manifest } from "../src/core.js";
 
 /**
  * pnpm tsx --import="./examples/programatic.ts" examples/basic.ts
@@ -26,20 +26,16 @@ const file = readFileSync(
   )
 );
 
-const manifest: Manifest = {
+const manifest: Pack = {
   schema: "pre2",
   name: "@taskless/example",
   version: "1.0.0",
   description: "Basic telemetry example, showing a programatic manifest",
   permissions: {},
-  fields: [
-    {
-      name: "enableStatus",
-      type: "boolean",
-      description: "Enable status logging",
-      default: true,
-    },
-  ],
+  url: {
+    source: "file://.empty",
+    signature: "",
+  },
 };
 
 const t = taskless(process.env.TASKLESS_API_KEY);

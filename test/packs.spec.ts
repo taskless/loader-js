@@ -1,15 +1,18 @@
 import { readFile } from "node:fs/promises";
 import { type Schema } from "@~/__generated__/schema.js";
-import { ROOT } from "@~/constants.js";
 import { taskless } from "@~/core.js";
 import {
-  type Manifest,
   type ConsolePayload,
   type NetworkPayload,
+  type Pack,
 } from "@~/types.js";
 import { http } from "msw";
 import { setupServer } from "msw/node";
+import { packageDirectorySync } from "package-directory";
 import { describe, test, vi } from "vitest";
+
+// hold a reference to this package's root for loading local WASM files
+export const ROOT = packageDirectorySync();
 
 describe("Loading packs", () => {
   test("Can programatically add packs that intercept requests", async ({
@@ -73,7 +76,7 @@ describe("Loading packs", () => {
 
     t.add(
       {
-        ...(JSON.parse(manifest.toString()) as Manifest),
+        ...(JSON.parse(manifest.toString()) as Pack),
       },
       wasm
     );

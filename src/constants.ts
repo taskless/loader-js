@@ -1,4 +1,3 @@
-import { packageDirectorySync } from "pkg-dir";
 import { type Schema } from "./__generated__/schema.js";
 
 /** The default Taskless host */
@@ -17,9 +16,6 @@ export const emptyConfig: Schema = {
 };
 
 export const DEFAULT_FLUSH_INTERVAL = 2000;
-
-// hold a reference to this package's root for loading local WASM files
-export const ROOT = packageDirectorySync();
 
 // a reusable noop function
 // eslint-disable-next-line @typescript-eslint/no-empty-function

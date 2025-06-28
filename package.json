@@ -43,9 +43,10 @@
   ],
   "dependencies": {
     "@extism/extism": "2.0.0-rc13",
+    "dotenv": "^16.6.0",
     "fets": "^0.8.5",
+    "glob": "^11.0.3",
     "msw": "^2.8.2",
-    "pkg-dir": "^8.0.0",
     "uint8array-extras": "^1.4.0",
     "uuid": "^11.1.0"
   },
@@ -63,6 +64,7 @@
     "json-schema-to-typescript": "^15.0.3",
     "lint-staged": "^15.2.4",
     "mkdirp": "^3.0.1",
+    "package-directory": "^8.1.0",
     "prettier": "^3.2.5",
     "rimraf": "^6.0.1",
     "syncpack": "^12.3.2",
