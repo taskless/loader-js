@@ -1,5 +1,5 @@
 import process from "node:process";
-import { type Pack } from "@~/types.js";
+import { type PluginInput, type Pack } from "@~/types.js";
 
 /**
  * Creates a JSON-friendly sandbox payload
@@ -42,12 +42,16 @@ export const createSandbox = async (
       url: info.request.url,
       domain: new URL(info.request.url).hostname,
       path: new URL(info.request.url).pathname,
+      method: info.request.method,
       headers: [...info.request.headers.entries()],
       body: pack.permissions?.body
         ? await extractBody(info.request)
         : undefined,
     },
-    chunk: info.chunk ? Buffer.from(info.chunk).toString("base64") : undefined,
+    chunk:
+      pack.permissions?.body && info.chunk
+        ? Buffer.from(info.chunk).toString("base64")
+        : undefined,
     response: info.response
       ? {
           status: info.response.status,
@@ -57,6 +61,6 @@ export const createSandbox = async (
             : undefined,
         }
       : undefined,
-    environment: env,
-  };
+    environment: pack.permissions?.environment ? env : undefined,
+  } satisfies PluginInput;
 };

@@ -171,7 +171,10 @@ export type PluginInput<
     headers?: Array<[string, string]>;
     body?: TResponseBody;
   };
+  chunk?: string; // base64 encoded chunk
+  requestId: string;
   context: TContext;
+  environment: Record<string, string | undefined> | undefined;
 } & Pick<Pack, "configuration">;
 
 export type PluginOutput<TContext = unknown> = {
