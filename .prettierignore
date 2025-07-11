@@ -7,3 +7,6 @@ __generated__
 # unformattables
 *.sh
 *.cfg
+
+# vendor
+vendor

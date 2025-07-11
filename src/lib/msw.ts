@@ -7,8 +7,8 @@ import {
   type PluginOutput,
 } from "@~/types.js";
 import { http, type HttpResponse } from "msw";
-import { id } from "./id.js";
-import { runSandbox } from "./sandbox.js";
+import { run } from "./sandbox.js";
+import { id } from "./util/id.js";
 
 /** Checks if a request is bypassed */
 const isBypassed = (request: Request) => {
@@ -18,14 +18,12 @@ const isBypassed = (request: Request) => {
 export const createHandler = ({
   loaded,
   logger,
-  useLogging,
   capture,
   getPacks,
   getModules,
 }: {
   loaded: Promise<boolean>;
   logger: Logger;
-  useLogging: boolean;
   capture: CaptureCallback;
   getPacks: () => Promise<Pack[]>;
   getModules: () => Promise<Map<string, Promise<Plugin>>>;
@@ -56,7 +54,7 @@ export const createHandler = ({
       dimensions: [],
     };
 
-    const response = await runSandbox(
+    const response = await run(
       { requestId, request: info.request },
       logger,
       packs,
@@ -66,6 +64,7 @@ export const createHandler = ({
           return getModules();
         },
         async onResult(pack: Pack, result: PluginOutput) {
+          // logger.debug(`${pack.name} with result: ${JSON.stringify(result)}`);
           for (const [key, value] of Object.entries(result.capture ?? {})) {
             // name = @taskless/apm
             // new key to be = @taskless/apm/durationMs
@@ -77,10 +76,19 @@ export const createHandler = ({
               dimension: nskey,
               value: `${value}`,
             });
+
+            // the logItem represents a console friendly synchronous payload
+            // to make it easier to import into existing observability tools
+            // that like structured JSON
             logItem.dimensions.push({
               name: nskey,
               value: `${value}`,
             });
+          }
+        },
+        onComplete(requestId) {
+          if (logger.data) {
+            logger.data(JSON.stringify(logItem));
           }
         },
         onError(error) {
@@ -88,10 +96,6 @@ export const createHandler = ({
         },
       }
     );
-
-    if (useLogging) {
-      logger.data(JSON.stringify(logItem));
-    }
 
     return response;
   });
