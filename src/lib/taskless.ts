@@ -24,10 +24,10 @@ import {
 import { createClient, type NormalizeOAS } from "fets";
 import { glob } from "glob";
 import { setupServer } from "msw/node";
-import { InitializationError } from "./error.js";
-import { createHandler } from "./handler.js";
-import { id, packIdentifier } from "./id.js";
-import { createLogger } from "./logger.js";
+import { createHandler } from "./msw.js";
+import { InitializationError } from "./util/error.js";
+import { id, packIdentifier } from "./util/id.js";
+import { createLogger } from "./util/logger.js";
 import type openapi from "../__generated__/openapi.js";
 
 // our on-demand worker code for a synchronous flush
@@ -127,7 +127,7 @@ export const taskless = (
     /\/$/,
     ""
   );
-  const logger = createLogger(options?.logLevel, options?.log);
+  const logger = createLogger(options?.logLevel, options?.log, useLogging);
   const client = createClient<NormalizeOAS<typeof openapi>>({
     endpoint: activeEndpoint,
     globalParams: {
@@ -218,10 +218,13 @@ export const taskless = (
     return networkPayload;
   };
 
-  /** Flush all pending telemetry asynchronously */
+  /** Flush all pending network telemetry asynchronously */
   const flush = async () => {
     logger.trace("Flushing telemetry data");
+
+    // clear the pending set and save them to entries
     const entries = pending.splice(0, pending.length);
+
     const networkPayload = useNetwork
       ? entriesToNetworkJson(entries)
       : undefined;
@@ -497,20 +500,19 @@ export const taskless = (
    * creates monotonic increasing values for each telemetry point
    */
   const capture: CaptureCallback = (entry) => {
-    logger.debug(
-      `[${entry.requestId}] Captured ${entry.dimension} as ${entry.value}`
-    );
     pending.push({
       ...entry,
       sequenceId: id(),
     });
+    logger.debug(
+      `[${entry.requestId}] Captured ${entry.dimension} as ${entry.value}`
+    );
   };
 
   // create the msw interceptor
   const handler = createHandler({
     loaded,
     logger,
-    useLogging,
     capture,
     getPacks: async () => packs,
     getModules: async () => modules,

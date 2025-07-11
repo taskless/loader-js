@@ -32,6 +32,10 @@ export interface Schema {
      */
     description: string;
     /**
+     * Supported methods for this pack, defaults to pre and post
+     */
+    methods?: ("pre" | "post" | "chunk")[];
+    /**
      * The permissions requested for this pack from the host system
      */
     permissions: {
@@ -40,7 +44,7 @@ export interface Schema {
        */
       environment?: string[];
       /**
-       * Whether this pack can access the request and response body
+       * [deprecated] Whether this pack can access the request and response body, always true
        */
       body?: boolean;
     };

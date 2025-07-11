@@ -3,3 +3,4 @@ __generated__/*
 next-env.d.ts
 examples/*
 test/fixtures/*
+src/vendor/*

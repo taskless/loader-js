@@ -25,7 +25,8 @@ const defaultLogger: Required<Logger> = {
 
 export const createLogger = (
   userLogLevel?: keyof Logger,
-  userLogger?: Partial<Logger>
+  userLogger?: Partial<Logger>,
+  enableDataLogging?: boolean
 ): Required<Logger> => {
   const logLevels: Record<keyof Logger, number> = {
     trace: 10,
@@ -37,28 +38,19 @@ export const createLogger = (
   };
 
   const logLevel = logLevels[userLogLevel ?? "info"];
+  const trace = userLogger?.trace ?? defaultLogger.trace;
+  const debug = userLogger?.debug ?? defaultLogger.debug;
+  const info = userLogger?.info ?? defaultLogger.info;
+  const warn = userLogger?.warn ?? defaultLogger.warn;
+  const error = userLogger?.error ?? defaultLogger.error;
+  const data = userLogger?.data ?? defaultLogger.data;
 
   return {
-    trace:
-      logLevel <= logLevels.trace
-        ? userLogger?.trace ?? defaultLogger.trace
-        : noop,
-    debug:
-      logLevel <= logLevels.debug
-        ? userLogger?.debug ?? defaultLogger.debug
-        : noop,
-    info:
-      logLevel <= logLevels.info
-        ? userLogger?.info ?? defaultLogger.info
-        : noop,
-    warn:
-      logLevel <= logLevels.warn
-        ? userLogger?.warn ?? defaultLogger.warn
-        : noop,
-    error:
-      logLevel <= logLevels.error
-        ? userLogger?.error ?? defaultLogger.error
-        : noop,
-    data: userLogger?.data ?? defaultLogger.data,
+    trace: logLevel <= logLevels.trace ? trace : noop,
+    debug: logLevel <= logLevels.debug ? debug : noop,
+    info: logLevel <= logLevels.info ? info : noop,
+    warn: logLevel <= logLevels.warn ? warn : noop,
+    error: logLevel <= logLevels.error ? error : noop,
+    data: enableDataLogging ? data : noop,
   };
 };

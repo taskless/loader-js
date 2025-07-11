@@ -100,12 +100,15 @@ const mergeEnvironments = (
   const env: Partial<EnvironmentKeys> = {};
   for (const [key, parser] of Object.entries(environmentParsers)) {
     for (const source of sources) {
-      if (source?.[key] !== undefined) {
-        const parsedValue = parser(source[key]);
-        if (parsedValue !== undefined) {
-          // Type assertion is safe here because we know the parser matches the key
-          (env as Record<string, any>)[key] = parsedValue;
-        }
+      const value = source?.[key];
+      if (!value) {
+        continue;
+      }
+
+      const parsedValue = parser(value);
+      if (parsedValue !== undefined) {
+        // Type assertion is safe here because we know the parser matches the key
+        (env as Record<string, any>)[key] = parsedValue;
       }
     }
   }
