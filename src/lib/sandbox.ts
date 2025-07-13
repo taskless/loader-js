@@ -41,8 +41,10 @@ export const run = async (
   logger.debug(`[${requestId}] making request`);
   const finalizedRequest = request.clone();
   finalizedRequest.headers.set("x-tskl-bypass", "1");
-  const rawResponse = await fetch(finalizedRequest);
   await pre;
+
+  // resolve the pre hooks as late as possible
+  const [rawResponse] = await Promise.all([fetch(finalizedRequest), pre]);
 
   // GZIP headers are being handled by undici and must be stripped
   const newHeaders: Array<[string, string]> = [...rawResponse.headers.entries()]

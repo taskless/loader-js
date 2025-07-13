@@ -60,7 +60,7 @@ describe("Loading packs", () => {
     });
 
     const t = taskless("test", {
-      // logLevel: "debug",
+      logLevel: "debug",
       logging: true,
       log: {
         data: logData,
@@ -113,18 +113,18 @@ describe("Loading packs", () => {
     await t.flush();
 
     const log = logs[0];
-    // console.log(JSON.stringify(logs, null, 2));
+    console.log(JSON.stringify(logs, null, 2));
 
     expect(
       log.dimensions.some(
-        (d) => d.name === "testpack/testPre" && d.value === "preTest"
+        (d) => d.name === "testpack/testPre" && d.value === "test_pre_value"
       ),
       "Logs pre test capture"
     ).toBe(true);
 
     expect(
       log.dimensions.some(
-        (d) => d.name === "testpack/testPost" && d.value === "postTest"
+        (d) => d.name === "testpack/testPost" && d.value === "test_post_value"
       ),
       "Logs post test capture"
     ).toBe(true);

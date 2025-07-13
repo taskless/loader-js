@@ -1,9 +1,18 @@
 {
   "schema": "pre2",
   "name": "testpack",
-  "version": "0.0.1",
-  "description": "Test pack, never published to prod",
-  "permissions": {},
-  "fields": [],
+  "version": "0.0.4",
+  "description": "Test / example pack, never published to prod",
+  "permissions": {
+    "body": true
+  },
+  "fields": [
+    {
+      "name": "testField",
+      "type": "string",
+      "description": "Test field that should exist in the lifecycle",
+      "default": "test_field_value"
+    }
+  ],
   "charts": []
 }

@@ -41,6 +41,9 @@ export const pre: LifecycleExecutor = async (
 
     if (output) {
       const result = output?.json() as PluginOutput;
+      logger.debug(
+        `[${requestId}] (${LIFECYCLE_ID}) pack ${pack.name} DATA: ${JSON.stringify(result)}`
+      );
 
       if (result.context) {
         context[`${index}`] = result.context;
@@ -48,7 +51,7 @@ export const pre: LifecycleExecutor = async (
 
       await callbacks.onResult(pack, result);
       logger.debug(
-        `[${requestId}] (${LIFECYCLE_ID}) pack ${pack.name} completed`
+        `[${requestId}] (${LIFECYCLE_ID}) pack ${pack.name} completed (captured: ${Object.keys(result.capture ?? {}).length})`
       );
     } else {
       logger.debug(

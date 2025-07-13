@@ -51,7 +51,7 @@ export const post: LifecycleExecutor = async (
 
       await callbacks.onResult(pack, result);
       logger.debug(
-        `[${requestId}] (${LIFECYCLE_ID}) pack ${pack.name} completed`
+        `[${requestId}] (${LIFECYCLE_ID}) pack ${pack.name} completed (captured: ${Object.keys(result.capture ?? {}).length})`
       );
     } else {
       logger.debug(
