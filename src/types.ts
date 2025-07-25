@@ -79,8 +79,7 @@ export type InitOptions = {
 export type TasklessAPI = {
   logger: Logger;
   add(pack: Pack, wasm: ArrayBuffer): void;
-  flush(): Promise<void>;
-  flushSync(): void;
+  shutdown(waitMs?: number): Promise<void>;
   load(): Promise<{
     network: boolean;
     packs: number;
@@ -151,7 +150,11 @@ export type CaptureItem = {
 };
 
 /** The capture callback does not include a sequence id by default. It is added later */
-export type CaptureCallback = (entry: Omit<CaptureItem, "sequenceId">) => void;
+export type CaptureCallback = (item: {
+  network?: Omit<CaptureItem, "sequenceId">;
+  console?: ConsolePayload;
+  pipeline?: number;
+}) => void;
 
 export type PluginInput<
   TContext = unknown,

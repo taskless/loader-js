@@ -60,7 +60,7 @@ describe("Loading packs", () => {
     });
 
     const t = taskless("test", {
-      logLevel: "debug",
+      // logLevel: "debug",
       logging: true,
       log: {
         data: logData,
@@ -110,10 +110,10 @@ describe("Loading packs", () => {
     const reply = await fetch("https://example.com/sample");
 
     // flush all pending data
-    await t.flush();
+    await t.shutdown();
 
     const log = logs[0];
-    console.log(JSON.stringify(logs, null, 2));
+    // console.log(JSON.stringify(logs, null, 2));
 
     expect(
       log.dimensions.some(

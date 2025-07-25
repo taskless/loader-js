@@ -3,6 +3,7 @@
   "name": "testpack",
   "version": "0.0.4",
   "description": "Test / example pack, never published to prod",
+  "methods": ["pre", "post", "chunk"],
   "permissions": {
     "body": true
   },

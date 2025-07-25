@@ -21,16 +21,18 @@ export const createHandler = ({
   capture,
   getPacks,
   getModules,
+  isActive,
 }: {
   loaded: Promise<boolean>;
   logger: Logger;
   capture: CaptureCallback;
   getPacks: () => Promise<Pack[]>;
   getModules: () => Promise<Map<string, Promise<Plugin>>>;
+  isActive: () => boolean;
 }) =>
   http.all("https://*", async (info) => {
     // let a bypassed request through to any other handlers
-    if (isBypassed(info.request)) {
+    if (isBypassed(info.request) || !isActive()) {
       return undefined;
     }
 
@@ -54,6 +56,11 @@ export const createHandler = ({
       dimensions: [],
     };
 
+    // ref counter++
+    capture({
+      pipeline: 1,
+    });
+
     const response = await run(
       { requestId, request: info.request },
       logger,
@@ -72,9 +79,11 @@ export const createHandler = ({
             const cleanedKey = key.replaceAll("/", "");
             const nskey = `${pack.name}/${cleanedKey}`;
             capture({
-              requestId,
-              dimension: nskey,
-              value: `${value}`,
+              network: {
+                requestId,
+                dimension: nskey,
+                value: `${value}`,
+              },
             });
 
             // the logItem represents a console friendly synchronous payload
@@ -87,9 +96,10 @@ export const createHandler = ({
           }
         },
         onComplete(requestId) {
-          if (logger.data) {
-            logger.data(JSON.stringify(logItem));
-          }
+          capture({
+            console: logItem,
+            pipeline: -1, // decrement the pipeline count
+          });
         },
         onError(error) {
           logger.error(`[${requestId}] error: ${error.message}`);

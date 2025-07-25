@@ -60,7 +60,11 @@ export const chunk: LifecycleExecutor = async (
       return undefined;
     }
 
-    await getBytes(response.body, async (bytes) => {
+    /**
+     * Hands off bytes to the chunk handler inside of an extism plugin
+     * If complete, the plugin will be called bytes as undefined
+     */
+    const captureBytes = async (bytes?: Uint8Array) => {
       const output = await plugin.call(
         EXTISM_FN,
         JSON.stringify(
@@ -88,7 +92,14 @@ export const chunk: LifecycleExecutor = async (
           `[${requestId}] (${LIFECYCLE_ID}) pack ${pack.name} no output returned`
         );
       }
+    };
+
+    await getBytes(response.body, async (bytes) => {
+      await captureBytes(bytes);
     });
+
+    // signal end of bytes to the chunk handler
+    await captureBytes(undefined);
   });
 
   const results = await Promise.allSettled(promises);

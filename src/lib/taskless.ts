@@ -1,6 +1,5 @@
 import { readFile } from "node:fs/promises";
 import process from "node:process";
-import { Worker } from "node:worker_threads";
 import { createPlugin, type Plugin } from "@extism/extism";
 import { type Manifest } from "@~/__generated__/manifest.js";
 import { type Pack } from "@~/__generated__/pack.js";
@@ -14,59 +13,52 @@ import {
 } from "@~/constants.js";
 import {
   type InitOptions,
-  type NetworkPayload,
   type CaptureCallback,
   type CaptureItem,
   type TasklessAPI,
-  type Logger,
   type MaybePromise,
 } from "@~/types.js";
 import { createClient, type NormalizeOAS } from "fets";
 import { glob } from "glob";
 import { setupServer } from "msw/node";
 import { createHandler } from "./msw.js";
-import { InitializationError } from "./util/error.js";
+import { entriesToNetworkJson } from "./util/entriesToNetworkJson.js";
+import { createErrorAPI, InitializationError } from "./util/error.js";
 import { id, packIdentifier } from "./util/id.js";
 import { createLogger } from "./util/logger.js";
+import { makeSynchronousRequest } from "./workers/makeRequest.js";
 import type openapi from "../__generated__/openapi.js";
 
-// our on-demand worker code for a synchronous flush
-const workerCode = /* js */ `
-const {
-  parentPort, workerData: { notifyHandle, data }
-} = require('worker_threads');
+export type * from "../types.js";
 
-const run = async () => {
-  try {
-    await fetch(data.url, data.requestInit);
-  }
-  catch {}
-  finally {
-    Atomics.store(notifyHandle, 0, 1);
-    Atomics.notify(notifyHandle, 0);
-  }
-};
-
-// ensure we run on the next tick
-setTimeout(run, 0);
-`;
-
-// a throwable function
-const createThrowable =
-  <T extends Error>(error: T): ((...args: any[]) => any) =>
-  () => {
-    // eslint-disable-next-line @typescript-eslint/only-throw-error
-    throw error;
+/** Autoloading interface for Taskless, hides manual pack loading and automatically initializes */
+export const autoload = (secret?: string, options?: InitOptions) => {
+  const handleError = (error: unknown) => {
+    if (error instanceof Error) {
+      t.logger.error(error.message);
+      // eslint-disable-next-line unicorn/no-process-exit
+      process.exit(1);
+    } else {
+      t.logger.error(error as string);
+      // eslint-disable-next-line unicorn/no-process-exit
+      process.exit(1);
+    }
   };
 
-/** A default no-op API */
-const createErrorAPI = <T extends Error>(error: T): TasklessAPI => ({
-  add: createThrowable(error),
-  flush: createThrowable(error),
-  flushSync: createThrowable(error),
-  logger: createThrowable(error) as unknown as Logger,
-  load: createThrowable(error),
-});
+  const t = taskless(secret, options);
+  t.logger.debug("Initialized Taskless");
+  try {
+    t.load()
+      .then(() => {
+        t.logger.debug("Taskless Autoloader ran successfully");
+      })
+      .catch((error: unknown) => {
+        handleError(error);
+      });
+  } catch (error) {
+    handleError(error);
+  }
+};
 
 // intentional deferred antipattern - loaded is used to unblock the HTTP wrapper
 // it may be checked multiple times, and we rely on the A+ spec to ensure it is
@@ -137,7 +129,17 @@ export const taskless = (
       },
     },
   });
-  const pending: CaptureItem[] = [];
+
+  // the exiting state of the loader
+  let exiting = false;
+
+  // ref counter for outstanding interceptors
+  let pipelineCount = 0;
+
+  // a queue of pending network requests to make
+  const pendingNetwork: CaptureItem[] = [];
+
+  // a timer for flushing telemetry data
   let timer: NodeJS.Timeout;
 
   logger.debug(
@@ -193,63 +195,34 @@ export const taskless = (
     clearTimeout(timer);
   }
 
-  /** Convert a set of log entries to compressed network payload */
-  const entriesToNetworkJson = (entries: CaptureItem[]) => {
-    const networkPayload: NetworkPayload = {};
-    for (const entry of entries) {
-      networkPayload[entry.requestId] ||= [];
-
-      // save as number when possible for performance
-      if (/^\d+$/.test(entry.value)) {
-        networkPayload[entry.requestId].push({
-          seq: entry.sequenceId,
-          dim: entry.dimension,
-          num: entry.value,
-        });
-      } else {
-        networkPayload[entry.requestId].push({
-          seq: entry.sequenceId,
-          dim: entry.dimension,
-          str: entry.value,
-        });
-      }
-    }
-
-    return networkPayload;
-  };
-
   /** Flush all pending network telemetry asynchronously */
   const flush = async () => {
     logger.trace("Flushing telemetry data");
 
     // clear the pending set and save them to entries
-    const entries = pending.splice(0, pending.length);
+    const entries = pendingNetwork.splice(0, pendingNetwork.length);
 
-    const networkPayload = useNetwork
-      ? entriesToNetworkJson(entries)
-      : undefined;
+    if (useNetwork) {
+      const networkPayload = entriesToNetworkJson(entries);
 
-    if (
-      useNetwork &&
-      networkPayload &&
-      Object.keys(networkPayload).length > 0
-    ) {
-      logger.trace(
-        `Flushing telemetry data to Taskless (batch size: ${Object.keys(networkPayload).length})`
-      );
+      if (networkPayload && Object.keys(networkPayload).length > 0) {
+        logger.trace(
+          `Flushing telemetry data to Taskless (batch size: ${Object.keys(networkPayload).length})`
+        );
 
-      try {
-        await client["/{version}/events"].post({
-          json: networkPayload,
-          params: {
-            version: "v1",
-          },
-          headers: {
-            authorization: `Bearer ${secret}`,
-            ...bypass,
-          },
-        });
-      } catch {}
+        try {
+          await client["/{version}/events"].post({
+            json: networkPayload,
+            params: {
+              version: "v1",
+            },
+            headers: {
+              authorization: `Bearer ${secret}`,
+              ...bypass,
+            },
+          });
+        } catch {}
+      }
     }
   };
 
@@ -259,52 +232,41 @@ export const taskless = (
    * appear synchronous in the main thread before completely exiting.
    */
   const flushSync = () => {
-    const entries = pending.splice(0, pending.length);
-    logger.trace(`Flushing (sync) ${entries.length} entries`);
-    if (entries.length === 0) {
-      return;
-    }
+    // clear the pending entries and save for processing
+    const entries = pendingNetwork.splice(0, pendingNetwork.length);
 
-    const networkPayload = useNetwork
-      ? entriesToNetworkJson(entries)
-      : undefined;
+    if (useNetwork) {
+      logger.trace(`Flushing (sync) ${entries.length} entries`);
+      if (entries.length === 0) {
+        return;
+      }
 
-    if (
-      useNetwork &&
-      networkPayload &&
-      Object.keys(networkPayload).length > 0
-    ) {
-      // worker setup
-      const notifyHandle = new Int32Array(new SharedArrayBuffer(4));
+      const networkPayload = useNetwork
+        ? entriesToNetworkJson(entries)
+        : undefined;
 
-      logger.trace("Spawning worker");
-
-      const w = new Worker(workerCode, {
-        eval: true,
-        workerData: {
-          notifyHandle,
-          data: {
-            url: `${activeEndpoint}/v1/events`,
-            requestInit: {
-              method: "POST",
-              headers: {
-                authorization: `Bearer ${secret}`,
-                "Content-Type": "application/json",
-                ...bypass,
-              },
-              body: JSON.stringify(networkPayload),
+      if (
+        useNetwork &&
+        networkPayload &&
+        Object.keys(networkPayload).length > 0
+      ) {
+        makeSynchronousRequest({
+          url: `${activeEndpoint}/v1/events`,
+          requestInit: {
+            method: "POST",
+            headers: {
+              authorization: `Bearer ${secret}`,
+              "Content-Type": "application/json",
+              ...bypass,
             },
+            body: JSON.stringify(networkPayload),
           },
-        },
-      });
-      // wait for notify
-      logger.trace("Wait for notify");
-      Atomics.wait(notifyHandle, 0, 0);
-      w.terminate();
+        });
+      }
     }
   };
 
-  let exiting = false;
+  // triggered by sigint, sigterm, etc.
   const exitHandler = () => {
     if (exiting) {
       return;
@@ -495,18 +457,38 @@ export const taskless = (
   };
 
   /**
-   * Captures a lua key/value data point and assigns it a sequence id
+   * Captures a key/value data point and assigns it a sequence id
    * This is externalized from the lifecycle so that our id() function
    * creates monotonic increasing values for each telemetry point
    */
   const capture: CaptureCallback = (entry) => {
-    pending.push({
-      ...entry,
-      sequenceId: id(),
-    });
-    logger.debug(
-      `[${entry.requestId}] Captured ${entry.dimension} as ${entry.value}`
-    );
+    // push data to the network queue
+    if (entry.network) {
+      pendingNetwork.push({
+        ...entry.network,
+        sequenceId: id(),
+      });
+      logger.debug(
+        `[${entry.network.requestId}] Captured ${entry.network.dimension} as ${entry.network.value}`
+      );
+    }
+
+    // push data to the console
+    if (entry.console && useLogging) {
+      if (logger.data) {
+        logger.data(JSON.stringify(entry.console));
+      } else {
+        console.log(JSON.stringify(entry.console));
+      }
+    }
+
+    // adjust the pipeline count
+    if (entry.pipeline !== undefined) {
+      pipelineCount += entry.pipeline;
+      logger.trace(
+        `Pipeline count is now ${pipelineCount} (incremented by ${entry.pipeline})`
+      );
+    }
   };
 
   // create the msw interceptor
@@ -516,6 +498,7 @@ export const taskless = (
     capture,
     getPacks: async () => packs,
     getModules: async () => modules,
+    isActive: () => !exiting,
   });
 
   /** MSW instance: If one is programatically provided, use that instead */
@@ -530,6 +513,9 @@ export const taskless = (
   }
 
   const api = {
+    /** get the current logger */
+    logger,
+
     /** add additional local packs programatically */
     add(manifest: Manifest, wasm: ArrayBuffer) {
       if (initialized) {
@@ -547,18 +533,6 @@ export const taskless = (
       moduleSource.set(ident, wasm);
     },
 
-    /** get the current logger */
-    logger,
-
-    /** Explicitly flush any pending logs. Useful before shutting down to ensure all events are captured */
-    async flush() {
-      clearTimeout(timer);
-      return flush();
-    },
-
-    /** Flush all pending logs synchronously */
-    flushSync,
-
     /** Load all registered packs and initialize Taskless */
     async load() {
       await initialize();
@@ -568,36 +542,58 @@ export const taskless = (
         packs: packs.length,
       };
     },
+
+    /** Shuts down Taskless, waiting for pipeline to complete */
+    async shutdown(waitMs = 3000) {
+      // flags shutdown and stops drain, no new data
+      exiting = true;
+      stopDrain();
+
+      // Create a promise that resolves when pipelineCount reaches 0
+      // or a timeout completes
+      const waitForPipelineCompletion = async (): Promise<boolean> => {
+        return new Promise<boolean>((resolve) => {
+          if (pipelineCount === 0) {
+            resolve(true);
+            return;
+          }
+
+          let isResolved = false;
+          const safeResolve = (value: boolean) => {
+            if (!isResolved) {
+              isResolved = true;
+              resolve(value);
+            }
+          };
+
+          // Set up an interval to check the pipeline count
+          const checkInterval = setInterval(() => {
+            if (pipelineCount === 0) {
+              clearInterval(checkInterval);
+              safeResolve(true);
+            }
+          }, 10); // Check every 10ms
+
+          // Set up a timeout to fail if waitMs is exceeded
+          const timeout = setTimeout(() => {
+            clearInterval(checkInterval);
+            safeResolve(false);
+          }, waitMs);
+        });
+      };
+
+      const success = await waitForPipelineCompletion();
+
+      if (!success) {
+        logger.warn(
+          `Taskless shutdown timed out after ${waitMs}ms, not all telemetry may have been captured`
+        );
+      }
+
+      // perform a synchronous flush to ensure as much data as possible is sent
+      flushSync();
+    },
   };
 
   return api;
 };
-
-/** Autoloading interface for Taskless, hides manual pack loading and automatically initializes */
-export const autoload = (secret?: string, options?: InitOptions) => {
-  const handleError = (error: unknown) => {
-    if (error instanceof Error) {
-      t.logger.error(error.message);
-      process.exit(1);
-    } else {
-      t.logger.error(error as string);
-      process.exit(1);
-    }
-  };
-
-  const t = taskless(secret, options);
-  t.logger.debug("Initialized Taskless");
-  try {
-    t.load()
-      .then(() => {
-        t.logger.debug("Taskless Autoloader ran successfully");
-      })
-      .catch((error: unknown) => {
-        handleError(error);
-      });
-  } catch (error) {
-    handleError(error);
-  }
-};
-
-export type * from "../types.js";
