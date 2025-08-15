@@ -78,7 +78,7 @@ export type InitOptions = {
 
 export type TasklessAPI = {
   logger: Logger;
-  add(pack: Pack, wasm: ArrayBuffer): void;
+  add(pack: Pack, wasm: Uint8Array): void;
   shutdown(waitMs?: number): Promise<void>;
   load(): Promise<{
     network: boolean;

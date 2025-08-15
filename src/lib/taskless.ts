@@ -21,6 +21,7 @@ import {
 import { createClient, type NormalizeOAS } from "fets";
 import { glob } from "glob";
 import { setupServer } from "msw/node";
+import { toUint8Array } from "uint8array-extras";
 import { createHandler } from "./msw.js";
 import { entriesToNetworkJson } from "./util/entriesToNetworkJson.js";
 import { createErrorAPI, InitializationError } from "./util/error.js";
@@ -30,6 +31,7 @@ import { makeSynchronousRequest } from "./workers/makeRequest.js";
 import type openapi from "../__generated__/openapi.js";
 
 export type * from "../types.js";
+export { toUint8Array } from "uint8array-extras";
 
 /** Autoloading interface for Taskless, hides manual pack loading and automatically initializes */
 export const autoload = (secret?: string, options?: InitOptions) => {
@@ -292,7 +294,7 @@ export const taskless = (
   /** Packs are added programatically or during the init step */
   const packs: Pack[] = [];
 
-  const moduleSource = new Map<string, MaybePromise<ArrayBuffer>>();
+  const moduleSource = new Map<string, MaybePromise<Uint8Array>>();
 
   /** WASM modules are added programatically or during the init step */
   const modules = new Map<string, Promise<Plugin>>();
@@ -384,7 +386,7 @@ export const taskless = (
                 configuration: Pack["configuration"];
                 url: Pack["url"];
               };
-              const wasmContents = readFile(wasmPath);
+              const wasmContents = readFile(wasmPath) as Promise<Uint8Array>;
               const pack: Pack = {
                 ...config,
                 ...manifest,
@@ -423,7 +425,8 @@ export const taskless = (
               },
             });
             logger.trace(`Fetched ${ident} from ${pack.url.source}`);
-            return data.arrayBuffer();
+            const buffer = await data.arrayBuffer();
+            return toUint8Array(buffer);
           })()
         );
       }
@@ -517,7 +520,7 @@ export const taskless = (
     logger,
 
     /** add additional local packs programatically */
-    add(manifest: Manifest, wasm: ArrayBuffer) {
+    add(manifest: Manifest, wasm: Uint8Array) {
       if (initialized) {
         throw new Error("A pack was added after Taskless was initialized");
       }

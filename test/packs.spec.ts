@@ -9,6 +9,7 @@ import {
 import { http } from "msw";
 import { setupServer } from "msw/node";
 import { packageDirectorySync } from "package-directory";
+import { toUint8Array } from "uint8array-extras";
 import { describe, test, vi } from "vitest";
 
 // hold a reference to this package's root for loading local WASM files
@@ -78,7 +79,7 @@ describe("Loading packs", () => {
       {
         ...(JSON.parse(manifest.toString()) as Pack),
       },
-      wasm
+      toUint8Array(wasm.buffer as ArrayBuffer)
     );
 
     // validate load

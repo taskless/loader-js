@@ -1,5 +1,11 @@
 # @taskless/loader
 
+## 0.0.37
+
+### Patch Changes
+
+- Switches pack add command to use Uint8Arrays instead of buffers
+
 ## 0.0.36
 
 ### Patch Changes
