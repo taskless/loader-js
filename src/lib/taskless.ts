@@ -1,16 +1,9 @@
 import { readFile } from "node:fs/promises";
 import process from "node:process";
 import { createPlugin, type Plugin } from "@extism/extism";
-import { type Manifest } from "@~/__generated__/manifest.js";
-import { type Pack } from "@~/__generated__/pack.js";
-import { type Schema } from "@~/__generated__/schema.js";
-import {
-  bypass,
-  DEFAULT_FLUSH_INTERVAL,
-  noop,
-  TASKLESS_HOST,
-  emptyConfig,
-} from "@~/constants.js";
+import { DEFAULT_FLUSH_INTERVAL } from "@~/constants.js";
+import { type Manifest } from "@~/types/manifest.js";
+import { type Pack } from "@~/types/pack.js";
 import {
   type InitOptions,
   type CaptureCallback,
@@ -18,23 +11,18 @@ import {
   type TasklessAPI,
   type MaybePromise,
 } from "@~/types.js";
-import { createClient, type NormalizeOAS } from "fets";
 import { glob } from "glob";
 import { setupServer } from "msw/node";
-import { toUint8Array } from "uint8array-extras";
 import { createHandler } from "./msw.js";
-import { entriesToNetworkJson } from "./util/entriesToNetworkJson.js";
 import { createErrorAPI, InitializationError } from "./util/error.js";
 import { id, packIdentifier } from "./util/id.js";
 import { createLogger } from "./util/logger.js";
-import { makeSynchronousRequest } from "./workers/makeRequest.js";
-import type openapi from "../__generated__/openapi.js";
 
 export type * from "../types.js";
 export { toUint8Array } from "uint8array-extras";
 
 /** Autoloading interface for Taskless, hides manual pack loading and automatically initializes */
-export const autoload = (secret?: string, options?: InitOptions) => {
+export const autoload = (options?: InitOptions) => {
   const handleError = (error: unknown) => {
     if (error instanceof Error) {
       t.logger.error(error.message);
@@ -47,7 +35,7 @@ export const autoload = (secret?: string, options?: InitOptions) => {
     }
   };
 
-  const t = taskless(secret, options);
+  const t = taskless(options);
   t.logger.debug("Initialized Taskless");
   try {
     t.load()
@@ -70,67 +58,18 @@ const loaded = new Promise<boolean>((resolve) => {
   setLoaded = resolve;
 });
 
-/** @deprecated */
-type DeprecatedInitOptions = {
-  /**
-   * @deprecated Use `output` instead as "output": ["network"]
-   * Disable the network by setting this to `false` logs will be output
-   * via the value of options.log at the `info` level
-   */
-  network?: boolean;
-  /**
-   * @deprecated Use `output` instead as "output": ["console"]
-   * Force logging of all data elements requests, even when network is enabled. Defaults to !network
-   */
-  logging?: boolean;
-};
-
 /**
  * Taskless
  * Create an instance of the Taskless loader, retrieve remote configurations,
  * and take control of your third party APIs.
  */
-export const taskless = (
-  secret?: string,
-  options?: InitOptions & DeprecatedInitOptions
-): TasklessAPI => {
-  // deprecated values
-  const useDeprecatedOptions =
-    options?.network !== undefined || options?.logging !== undefined;
-  const deprecatedNetworkOption = Boolean(
-    options?.network ?? (secret && secret.length > 0)
-  );
-  const deprecatedLoggingOption = Boolean(
-    options?.logging ?? !deprecatedNetworkOption
-  );
-
-  const defaultNetwork =
-    Boolean(secret) && typeof secret === "string" && secret.length > 0;
-  const defaultOutput = [defaultNetwork ? "network" : "console"];
+export const taskless = (options?: InitOptions): TasklessAPI => {
+  const defaultOutput = ["console"];
   const outputOption = options?.output ?? defaultOutput;
 
   // finalize network and logging options
-  const useNetwork = useDeprecatedOptions
-    ? deprecatedNetworkOption
-    : outputOption.includes("network");
-  const useLogging = useDeprecatedOptions
-    ? deprecatedLoggingOption
-    : outputOption.includes("console");
-
-  const activeEndpoint = (options?.endpoint ?? TASKLESS_HOST).replace(
-    /\/$/,
-    ""
-  );
+  const useLogging = outputOption.includes("console");
   const logger = createLogger(options?.logLevel, options?.log, useLogging);
-  const client = createClient<NormalizeOAS<typeof openapi>>({
-    endpoint: activeEndpoint,
-    globalParams: {
-      headers: {
-        authorization: `Bearer ${secret}`,
-        ...bypass,
-      },
-    },
-  });
 
   // the exiting state of the loader
   let exiting = false;
@@ -147,30 +86,17 @@ export const taskless = (
   logger.debug(
     [
       `Taskless initialized with:`,
-      `  - Network: ${useNetwork}`,
       `  - Logging: ${useLogging}`,
-      `  - Endpoint: ${activeEndpoint}`,
       `  - Directory: ${options?.directory ?? "none"}`,
       `  - Flush interval: ${options?.flushInterval ?? DEFAULT_FLUSH_INTERVAL}ms`,
     ].join("\n")
   );
 
-  if (!useNetwork && !useLogging) {
+  if (!useLogging) {
     return {
       ...createErrorAPI(
         new InitializationError(
-          "Network and logging are both disabled. No telemetry will be captured"
-        )
-      ),
-      logger,
-    };
-  }
-
-  if (useNetwork && !secret) {
-    return {
-      ...createErrorAPI(
-        new InitializationError(
-          "Network is enabled, but no secret was provided."
+          "Logging is disabled. No telemetry will be captured"
         )
       ),
       logger,
@@ -182,7 +108,6 @@ export const taskless = (
     /** Inner function to flush and restart drain */
     function flushAndRestart() {
       logger.trace("Flushing telemetry data");
-      flush().catch(noop); // discard flush errors
       startDrain();
     }
 
@@ -197,77 +122,6 @@ export const taskless = (
     clearTimeout(timer);
   }
 
-  /** Flush all pending network telemetry asynchronously */
-  const flush = async () => {
-    logger.trace("Flushing telemetry data");
-
-    // clear the pending set and save them to entries
-    const entries = pendingNetwork.splice(0, pendingNetwork.length);
-
-    if (useNetwork) {
-      const networkPayload = entriesToNetworkJson(entries);
-
-      if (networkPayload && Object.keys(networkPayload).length > 0) {
-        logger.trace(
-          `Flushing telemetry data to Taskless (batch size: ${Object.keys(networkPayload).length})`
-        );
-
-        try {
-          await client["/{version}/events"].post({
-            json: networkPayload,
-            params: {
-              version: "v1",
-            },
-            headers: {
-              authorization: `Bearer ${secret}`,
-              ...bypass,
-            },
-          });
-        } catch {}
-      }
-    }
-  };
-
-  /**
-   * Synchronous flush. Performs a final send of pending telemetry data
-   * uses a worker thread and Atomics to make the final http call
-   * appear synchronous in the main thread before completely exiting.
-   */
-  const flushSync = () => {
-    // clear the pending entries and save for processing
-    const entries = pendingNetwork.splice(0, pendingNetwork.length);
-
-    if (useNetwork) {
-      logger.trace(`Flushing (sync) ${entries.length} entries`);
-      if (entries.length === 0) {
-        return;
-      }
-
-      const networkPayload = useNetwork
-        ? entriesToNetworkJson(entries)
-        : undefined;
-
-      if (
-        useNetwork &&
-        networkPayload &&
-        Object.keys(networkPayload).length > 0
-      ) {
-        makeSynchronousRequest({
-          url: `${activeEndpoint}/v1/events`,
-          requestInit: {
-            method: "POST",
-            headers: {
-              authorization: `Bearer ${secret}`,
-              "Content-Type": "application/json",
-              ...bypass,
-            },
-            body: JSON.stringify(networkPayload),
-          },
-        });
-      }
-    }
-  };
-
   // triggered by sigint, sigterm, etc.
   const exitHandler = () => {
     if (exiting) {
@@ -277,7 +131,6 @@ export const taskless = (
     exiting = true;
     logger.debug("Shutting down Taskless");
     stopDrain();
-    flushSync();
   };
 
   for (const event of [
@@ -302,43 +155,6 @@ export const taskless = (
   /** Initialization flag, ensures we passed through init */
   let initialized = false;
 
-  /**
-   * Fetches the config, storing the result in a promise to resolve later.
-   * Using a promise keeps taskless() synchronous for JS loaders and avoid
-   * race conditions.
-   */
-  const promisedConfig: Promise<Schema | undefined> = (async () => {
-    if (!secret) {
-      return undefined;
-    }
-
-    logger.debug("Retrieving configuration from Taskless");
-    const response = await client["/{version}/config"].get({
-      headers: {
-        authorization: `Bearer ${secret}`,
-        ...bypass,
-      },
-      params: {
-        version: "pre2",
-      },
-    });
-
-    if (!response.ok) {
-      logger.error(
-        `Failed to fetch configuration: ${response.status} ${response.statusText}. Taskless will not apply rules.`
-      );
-      return emptyConfig;
-    }
-
-    const data = (await response.json()) as Schema;
-
-    logger.debug(
-      `Retrieved configuration from Taskless (orgId: ${data.organizationId}, schema: ${data.schema})`
-    );
-
-    return data;
-  })();
-
   /** Initialize all local rules and ensure remote rules are loaded */
   const initialize = async () => {
     if (initialized) {
@@ -351,7 +167,6 @@ export const taskless = (
     initialized = true;
 
     // copy packs from the config into module source
-    const config = await promisedConfig;
     const seen = new Set<string>();
 
     if (options?.directory) {
@@ -402,33 +217,6 @@ export const taskless = (
         );
       } catch {
         // errors were logged to console, but do not block the load or crash the app
-      }
-    }
-
-    if (config) {
-      logger.debug("Initializing remote packs");
-      for (const pack of config.packs ?? []) {
-        const ident = packIdentifier(pack as Pack);
-        if (seen.has(ident)) {
-          continue;
-        }
-
-        seen.add(ident);
-        packs.push(pack as Pack);
-        moduleSource.set(
-          ident,
-          (async () => {
-            logger.trace(`Fetching ${ident} from ${pack.url.source}`);
-            const data = await fetch(pack.url.source, {
-              headers: {
-                ...bypass,
-              },
-            });
-            logger.trace(`Fetched ${ident} from ${pack.url.source}`);
-            const buffer = await data.arrayBuffer();
-            return toUint8Array(buffer);
-          })()
-        );
       }
     }
 
@@ -541,7 +329,6 @@ export const taskless = (
       await initialize();
 
       return {
-        network: useNetwork,
         packs: packs.length,
       };
     },
@@ -592,9 +379,6 @@ export const taskless = (
           `Taskless shutdown timed out after ${waitMs}ms, not all telemetry may have been captured`
         );
       }
-
-      // perform a synchronous flush to ensure as much data as possible is sent
-      flushSync();
     },
   };
 

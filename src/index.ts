@@ -16,7 +16,6 @@ import {
   type LogLevel,
   type Output,
 } from "./types.js";
-import type { PartialDeep } from "type-fest";
 
 /*
  * Taskless Autoloader File
@@ -26,8 +25,6 @@ import type { PartialDeep } from "type-fest";
 type Maybe<T> = T | undefined;
 
 type EnvironmentKeys = {
-  TASKLESS_API_KEY: string;
-  TASKLESS_ENDPOINT: string;
   TASKLESS_FLUSH_INTERVAL: number;
   TASKLESS_LOG_LEVEL: LogLevel;
   TASKLESS_OUTPUT: Output[];
@@ -37,9 +34,6 @@ type EnvironmentKeys = {
 type EnvParser<T extends keyof EnvironmentKeys> = (
   value: string
 ) => EnvironmentKeys[T] | undefined;
-
-// simple noop for strings
-const asString = (value: string): string => value.trim();
 
 /** A key/value collection of parsers for every environment key we're supporting */
 const environmentParsers: {
@@ -53,8 +47,6 @@ const environmentParsers: {
 
     return undefined;
   },
-  TASKLESS_API_KEY: asString,
-  TASKLESS_ENDPOINT: asString,
   TASKLESS_FLUSH_INTERVAL(value) {
     const parsed = Number.parseInt(value, 10);
     if (Number.isNaN(parsed) || parsed < 0) {
@@ -128,69 +120,17 @@ const ENV = mergeEnvironments(envFile, process.env);
 
 const configuration: InitOptions = {
   directory: ENV.TASKLESS_DIRECTORY as Maybe<string>,
-  endpoint: ENV.TASKLESS_ENDPOINT as Maybe<string>,
-  flushInterval: ENV.TASKLESS_FLUSH_INTERVAL as Maybe<number>,
   log: undefined,
   logLevel: ENV.TASKLESS_LOG_LEVEL as Maybe<InitOptions["logLevel"]>,
   output: ENV.TASKLESS_OUTPUT as Maybe<InitOptions["output"]>,
   __experimental: undefined,
 };
 
-const TASKLESS_DEPRECATED_OPTIONS = getRawEnv("TASKLESS_OPTIONS");
-const deprecatedOptions = Object.assign(
-  {},
-  {
-    // common values
-    logLevel: configuration.logLevel,
-  },
-  // split the TASKLESS_OPTIONS which is going away in the future
-  ...`${TASKLESS_DEPRECATED_OPTIONS ?? ""}`
-    .split(";")
-    .map((raw) => {
-      const castString = (value: string) => {
-        switch (value) {
-          case "true": {
-            return true;
-          }
-
-          case "false": {
-            return false;
-          }
-
-          default: {
-            // convert numbers on regex match
-            if (/^\d+$/.test(value)) {
-              return Number.parseInt(value, 10);
-            }
-
-            return value;
-          }
-        }
-      };
-
-      const [key, value] = raw.split("=", 2);
-      if (key && value) {
-        return {
-          [key]: castString(value),
-        };
-      }
-
-      return undefined;
-    })
-    .filter((v) => v !== undefined)
-) as Record<string, unknown>;
-
 // taskless will by default auto-initialize, fetching remote
 // packs and patching the runtime
-autoload(ENV.TASKLESS_API_KEY as Maybe<string>, {
-  ...(TASKLESS_DEPRECATED_OPTIONS ? deprecatedOptions : configuration),
+autoload({
+  ...configuration,
 });
-
-if (TASKLESS_DEPRECATED_OPTIONS) {
-  console.warn(
-    "Taskless: Deprecated options are being used. Please update your configuration."
-  );
-}
 
 // eslint-disable-next-line @typescript-eslint/no-useless-empty-export
 export {};

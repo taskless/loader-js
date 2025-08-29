@@ -1,9 +1,7 @@
 import { readFileSync } from "fs";
 import { resolve } from "path";
 import { packageDirectorySync } from "package-directory";
-
-// import { taskless } from "@taskless/core";
-import { Pack, taskless, type Manifest } from "../src/core.js";
+import { type Pack, taskless } from "../src/core.js";
 
 /**
  * pnpm tsx --import="./examples/programatic.ts" examples/basic.ts
@@ -38,8 +36,8 @@ const manifest: Pack = {
   },
 };
 
-const t = taskless(process.env.TASKLESS_API_KEY);
-t.add(manifest, file);
+const t = taskless();
+t.add(manifest, file as Uint8Array);
 t.load();
 
 export {};

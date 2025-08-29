@@ -1,5 +1,11 @@
 # @taskless/loader
 
+## 0.0.38
+
+### Patch Changes
+
+- Removes the Taskless Cloud dependencies - the loader now runs in local only mode, and does not have a network dependency. You'll need to use the Taskless Pack CLI to install and update packs locally.
+
 ## 0.0.37
 
 ### Patch Changes

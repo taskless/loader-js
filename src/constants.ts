@@ -1,7 +1,4 @@
-import { type Schema } from "./__generated__/schema.js";
-
-/** The default Taskless host */
-export const TASKLESS_HOST = "https://data.tskl.es";
+import { type Schema } from "./types/schema.js";
 
 /** Headers that change a request to one that bypasses our MSW interceptor */
 export const bypass = {

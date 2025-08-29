@@ -1,5 +1,4 @@
-import process from "node:process";
-import { type Pack } from "@~/__generated__/pack.js";
+import { type Pack } from "@~/types/pack.js";
 import { type Logger } from "@~/types.js";
 import { type LifecycleCallbacks } from "./lifecycle/types.js";
 import { runPackLifecycle } from "./lifecycle.js";

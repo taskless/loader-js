@@ -1,5 +1,5 @@
 import { type Plugin } from "@extism/extism";
-import { type Pack } from "@~/__generated__/pack.js";
+import { type Pack } from "@~/types/pack.js";
 import {
   type ConsolePayload,
   type CaptureCallback,

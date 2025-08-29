@@ -53,7 +53,7 @@ describe("Chunked encoding using SSE", () => {
       }
     });
 
-    const t = taskless(undefined, {
+    const t = taskless({
       // logLevel: "debug",
       log: {
         data: logData,

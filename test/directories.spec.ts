@@ -16,13 +16,6 @@ describe("Directory based loading", () => {
     const msw = setupServer();
     msw.listen();
 
-    // return an empty configuration from Taskless API
-    msw.use(
-      http.get("https://data.tskl.es/:version/config", async (info) => {
-        throw new Error("URL should never be called");
-      })
-    );
-
     // captured logs from this run
     const logs: ConsolePayload[] = [];
     const logData = vi.fn((line: string) => {
@@ -31,7 +24,7 @@ describe("Directory based loading", () => {
       }
     });
 
-    const t = taskless(undefined, {
+    const t = taskless({
       directory: `${ROOT}/test/wasm`,
       output: ["console"],
       log: {

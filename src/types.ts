@@ -1,9 +1,11 @@
-import { type OASInput, type NormalizeOAS } from "fets";
 import { type SetupServerApi } from "msw/node";
-import { type Manifest } from "./__generated__/manifest.js";
-import { type Pack } from "./__generated__/pack.js";
-import { type Schema } from "./__generated__/schema.js";
-import type openapi from "./__generated__/openapi.js";
+import { type Pack } from "./types/pack.js";
+import { type Schema } from "./types/schema.js";
+
+// loader objects
+export { type Schema } from "./types/schema.js";
+export { type Manifest } from "./types/manifest.js";
+export { type Pack } from "./types/pack.js";
 
 export function isDefined<T>(value: T): value is NonNullable<T> {
   return value !== undefined && value !== null;
@@ -21,9 +23,6 @@ export function isOutput(value: unknown): value is Output {
 }
 
 export type MaybePromise<T> = T | Promise<T>;
-
-export { type Pack } from "./__generated__/pack.js";
-export { type Manifest } from "./__generated__/manifest.js";
 
 export type LogLevel = "trace" | "debug" | "info" | "warn" | "error";
 
@@ -43,10 +42,6 @@ export type InitOptions = {
    * Load Taskless packs from a local directory
    */
   directory?: string;
-  /**
-   * Specify an endpoint for the Taskless Cloud requests. Defaults to "https://data.tskl.es"
-   */
-  endpoint?: string;
   /**
    * Set a flush interval different from the default 2000ms
    */
@@ -81,7 +76,6 @@ export type TasklessAPI = {
   add(pack: Pack, wasm: Uint8Array): void;
   shutdown(waitMs?: number): Promise<void>;
   load(): Promise<{
-    network: boolean;
     packs: number;
   }>;
 };
@@ -124,11 +118,6 @@ export function isPack(value?: unknown): value is Pack {
 
   return false;
 }
-
-/** Network payload intended for Taskless */
-export type NetworkPayload = NonNullable<
-  OASInput<NormalizeOAS<typeof openapi>, "/{version}/events", "post", "json">
->;
 
 /** Console payload intended for stdout */
 export type ConsolePayload = {

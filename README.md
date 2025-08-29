@@ -9,8 +9,6 @@ Out of the box, you get:
 - Automatic correlation of API failures and root causes
 - Local NDJSON logging that works with your existing tools
 
-Running in local mode requires no account or API key - just install and go.
-
 # Getting Started
 
 ```bash
@@ -29,21 +27,14 @@ node --import="@taskless/loader" start.js
 
 # Advanced Features
 
-## Taskless Cloud
-
-You'll need your API key from taskless.io to use Taskless' dynamic pack loading, remote cofiguration, and dashboard packages. If you don't have an API key, you can request one at [taskless.io](https://taskless.io). With an API key in hand, you can update your node.js start command:
-
-```bash
-TASKLESS_API_KEY="your api key" node --import="@taskless/loader" start.js
-```
-
 ## Autoloading Options
 
-| env                  | values                                    | description                                     |
-| :------------------- | :---------------------------------------- | :---------------------------------------------- |
-| `TASKLESS_API_KEY`   | `string`                                  | Your Taskless API key                           |
-| `TASKLESS_LOG_LEVEL` | `trace`, `debug`, `info`, `warn`, `error` | Sets the log level                              |
-| `TASKLESS_OPTIONS`   | `key1=value1;key2=value2...`              | Set key/value pairs for the Taskless Autoloader |
+| ENV value                 | type     | default       | description                                                                                  |
+| :------------------------ | :------- | :------------ | :------------------------------------------------------------------------------------------- |
+| `TASKLESS_FLUSH_INTERVAL` | `number` | `2000`        | Interval in milliseconds to check for pending logs and flush them to the output destinations |
+| `TASKLESS_LOG_LEVEL`      | `string` | `info`        | A console log level to allow through. One of: `error`, `warn`, `log`, `info`, `debug`        |
+| `TASKLESS_OUTPUT`         | `string` | `console`     | A comma separated list of output destinations                                                |
+| `TASKLESS_DIRECTORY`      | `string` | `./.taskless` | Directory that contains your local Taskless packs                                            |
 
 ## Programatic API
 

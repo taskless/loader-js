@@ -1,11 +1,7 @@
 import { readFile } from "node:fs/promises";
-import { type Schema } from "@~/__generated__/schema.js";
 import { taskless } from "@~/core.js";
-import {
-  type ConsolePayload,
-  type NetworkPayload,
-  type Pack,
-} from "@~/types.js";
+import { type Schema } from "@~/types/schema.js";
+import { type ConsolePayload, type Pack } from "@~/types.js";
 import { http } from "msw";
 import { setupServer } from "msw/node";
 import { packageDirectorySync } from "package-directory";
@@ -26,26 +22,6 @@ describe("Loading packs", () => {
     // tracks if MSW caught the config call
     const configInterceptor = vi.fn();
 
-    // return an empty configuration from Taskless API
-    msw.use(
-      http.get("https://data.tskl.es/:version/config", async (info) => {
-        configInterceptor();
-
-        const cfg: Schema = {
-          schema: "pre2",
-          organizationId: "test",
-          packs: [],
-        };
-
-        return new Response(JSON.stringify(cfg), {
-          status: 200,
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-      })
-    );
-
     msw.use(
       http.get("https://example.com/sample", async (info) => {
         return new Response("Hello world!");
@@ -60,9 +36,9 @@ describe("Loading packs", () => {
       }
     });
 
-    const t = taskless("test", {
+    const t = taskless({
       // logLevel: "debug",
-      logging: true,
+      output: ["console"],
       log: {
         data: logData,
       },
@@ -85,27 +61,6 @@ describe("Loading packs", () => {
     // validate load
     const stats = await t.load();
     expect(stats.packs, "Able to load packs").toBe(1);
-
-    // after loading, we need to add a rule to MSW for catching network requests
-    // this ensures our telemetry calls aren't bypassed by the load() call
-    // we store payloads for analysis later
-    const payloads: Array<NonNullable<NetworkPayload>> = [];
-    msw.use(
-      http.post("https://data.tskl.es/:version/events", async (info) => {
-        const body = (await info.request.clone().json()) as NetworkPayload;
-        if (!body) {
-          throw new Error("No body found in request");
-        }
-
-        payloads.push(body);
-        return new Response(JSON.stringify({}), {
-          status: 200,
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-      })
-    );
 
     // attempting a request
     const reply = await fetch("https://example.com/sample");
